@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --gold: #D4AF37;
+  --gold-light: #F9E29C;
+  --black: #0A0A0A;
+  --black-soft: #1A1A1A;
+  --accent: #E25822; /* Flame orange */
+  --accent-red: #8B0000; /* Deep red */
+}
+
+body {
+  @apply bg-[#0A0A0A] text-white font-['Inter',sans-serif];
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, .font-serif {
+  @apply font-['Playfair_Display',serif];
+}
+
+.font-royal {
+  @apply font-['Cinzel',serif];
+}
+
+.text-gold {
+  color: var(--gold);
+}
+
+.bg-gold {
+  background-color: var(--gold);
+}
+
+.border-gold {
+  border-color: var(--gold);
+}
+
+.btn-primary {
+  @apply bg-gold text-black px-8 py-3 rounded-none font-bold uppercase tracking-widest transition-all duration-300 hover:bg-white hover:scale-105 active:scale-95;
+}
+
+.btn-outline {
+  @apply border border-gold text-gold px-8 py-3 rounded-none font-bold uppercase tracking-widest transition-all duration-300 hover:bg-gold hover:text-black;
+}
+
+/* Glassmorphism */
+.glass {
+  background: rgba(26, 26, 26, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+}

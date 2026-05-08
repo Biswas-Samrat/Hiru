@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-black text-white font-sans;
+}
+
+.sidebar-link {
+  @apply flex items-center gap-3 px-6 py-4 text-gray-400 hover:bg-gold/10 hover:text-gold transition-all border-l-4 border-transparent;
+}
+
+.sidebar-link.active {
+  @apply bg-gold/10 text-gold border-gold;
+}
+
+.card {
+  @apply bg-black-soft border border-gold/10 p-6 rounded-none;
+}
+
+.btn-gold {
+  @apply bg-gold text-black px-4 py-2 font-bold hover:bg-white transition-all disabled:opacity-50;
+}
