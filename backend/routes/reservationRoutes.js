@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { getReservations, createReservation, updateReservationStatus } = require('../controllers/reservationController');
 
-router.get('/', getReservations);
-router.post('/', createReservation);
-router.put('/:id/status', updateReservationStatus);
-
-module.exports = router;
+module.exports = (io) => {
+  router.get('/', getReservations);
+  router.post('/', (req, res) => createReservation(req, res, io));
+  router.put('/:id/status', (req, res) => updateReservationStatus(req, res, io));
+  return router;
+};

@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import io from 'socket.io-client';
 import axios from 'axios';
-import { motion } from 'framer-motion';
-import { Clock, CheckCircle2, UtensilsCrossed, PackageCheck } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const socket = io(API_URL);
@@ -15,6 +13,14 @@ const OrderTracking = () => {
 
   useEffect(() => {
     const fetchOrder = async () => {
+      if (id.startsWith('local-')) {
+        const localOrder = localStorage.getItem(`hirans-order-${id}`);
+        if (localOrder) {
+          setOrder(JSON.parse(localOrder));
+        }
+        return;
+      }
+
       try {
         const res = await axios.get(`${API_URL}/api/orders/${id}`);
         setOrder(res.data);
@@ -24,7 +30,9 @@ const OrderTracking = () => {
     };
 
     fetchOrder();
-    socket.emit('joinOrder', id);
+    if (!id.startsWith('local-')) {
+      socket.emit('joinOrder', id);
+    }
 
     socket.on('orderUpdate', (updatedOrder) => {
       setOrder(updatedOrder);
@@ -37,7 +45,6 @@ const OrderTracking = () => {
 
   useEffect(() => {
     if (!order || !order.estimatedReadyTime || order.status === 'Ready for Pickup') {
-      setTimeLeft(null);
       return;
     }
 
@@ -59,55 +66,52 @@ const OrderTracking = () => {
     return () => clearInterval(timer);
   }, [order]);
 
-  if (!order) return <div className="h-screen flex items-center justify-center bg-black text-gold">Loading...</div>;
+  if (!order) return <div className="vh-100 d-flex align-items-center justify-content-center section-dark text-gold">Loading...</div>;
 
   const steps = [
-    { name: 'Pending', icon: <Clock size={24} />, color: 'text-gray-500' },
-    { name: 'Preparing', icon: <UtensilsCrossed size={24} />, color: 'text-orange-500' },
-    { name: 'Almost Ready', icon: <Flame size={24} />, color: 'text-yellow-500' },
-    { name: 'Ready for Pickup', icon: <PackageCheck size={24} />, color: 'text-green-500' }
+    { name: 'Pending', icon: 'fa-regular fa-clock' },
+    { name: 'Preparing', icon: 'fa-solid fa-utensils' },
+    { name: 'Almost Ready', icon: 'fa-solid fa-fire' },
+    { name: 'Ready for Pickup', icon: 'fa-solid fa-box' }
   ];
 
-  const currentStepIndex = steps.findIndex(s => s.name === order.status);
+  const currentStepIndex = Math.max(0, steps.findIndex(s => s.name === order.status));
+  const orderItems = Array.isArray(order.items) ? order.items : [];
 
   return (
-    <div className="min-h-screen pt-32 pb-20 bg-black px-4">
-      <div className="max-w-3xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-gold font-royal tracking-[0.3em] uppercase mb-4">Order Status</h2>
-          <h1 className="text-4xl md:text-5xl font-serif font-bold">Track Your Feast</h1>
+    <div className="min-vh-100 pt-5 pb-5 section-dark px-3">
+      <div className="container" style={{ maxWidth: '960px' }}>
+        <div className="text-center mb-5 mt-4">
+          <h2 className="text-gold text-uppercase mb-2 small">Order Status</h2>
+          <h1 className="display-5 fw-bold">Track Your Feast</h1>
         </div>
 
-        {/* Timer Card */}
-        <div className="glass p-12 text-center mb-12 relative overflow-hidden border-gold/20">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-gold to-transparent opacity-50"></div>
-          
-          <h3 className="text-gray-400 uppercase tracking-widest text-sm mb-4 font-bold">Estimated Preparation Time</h3>
-          <div className="text-7xl md:text-9xl font-serif font-bold text-gold mb-6 tabular-nums">
+        <div className="glass p-4 p-md-5 text-center mb-5">
+          <h3 className="text-secondary text-uppercase small mb-3 fw-bold">Estimated Preparation Time</h3>
+          <div className="display-1 fw-bold text-gold mb-3" style={{ fontVariantNumeric: 'tabular-nums' }}>
             {timeLeft !== null ? timeLeft : '--:--'}
           </div>
-          <p className="text-gold/60 italic font-serif">
-            {order.status === 'Ready for Pickup' ? 'Your food is ready for collection!' : 'Minutes until culinary perfection'}
+          <p className="text-secondary mb-0 fst-italic">
+            {order.status === 'Ready for Pickup' ? 'Your food is ready for collection!' : 'Your food will be ready soon'}
           </p>
         </div>
 
-        {/* Progress Tracker */}
-        <div className="relative mb-20 px-8">
-          <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-800 -translate-y-1/2"></div>
+        <div className="position-relative mb-5 px-2 px-md-4">
+          <div className="position-absolute top-50 start-0 w-100 border-top border-secondary"></div>
           <div 
-            className="absolute top-1/2 left-0 h-0.5 bg-gold transition-all duration-1000 -translate-y-1/2"
+            className="position-absolute top-50 start-0 border-top border-warning"
             style={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
           ></div>
           
-          <div className="relative flex justify-between">
+          <div className="position-relative d-flex justify-content-between">
             {steps.map((step, idx) => (
-              <div key={idx} className="flex flex-col items-center">
-                <div className={`w-14 h-14 rounded-full flex items-center justify-center z-10 transition-all duration-500 ${
-                  idx <= currentStepIndex ? 'bg-gold text-black border-4 border-black' : 'bg-black border-4 border-gray-800 text-gray-500'
+              <div key={idx} className="d-flex flex-column align-items-center">
+                <div className={`rounded-circle d-flex align-items-center justify-content-center position-relative ${
+                  idx <= currentStepIndex ? 'bg-gold text-dark border border-dark' : 'bg-dark border border-secondary text-secondary'
                 }`}>
-                  {step.icon}
+                  <i className={step.icon} style={{ width: '44px', height: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}></i>
                 </div>
-                <span className={`mt-4 text-xs font-bold uppercase tracking-widest ${idx <= currentStepIndex ? 'text-gold' : 'text-gray-600'}`}>
+                <span className={`mt-2 small fw-bold text-uppercase ${idx <= currentStepIndex ? 'text-gold' : 'text-secondary'}`}>
                   {step.name}
                 </span>
               </div>
@@ -115,23 +119,32 @@ const OrderTracking = () => {
           </div>
         </div>
 
-        {/* Order Details */}
-        <div className="glass p-8">
-          <h4 className="text-xl font-serif font-bold mb-6 border-b border-gold/10 pb-4">Order Details</h4>
-          <div className="space-y-4">
-            {order.items.map((item, idx) => (
-              <div key={idx} className="flex justify-between items-center">
+        <div className="glass p-4">
+          <h4 className="h4 fw-bold mb-3 border-bottom border-gold pb-2">Order Details</h4>
+          <div className="d-grid gap-3">
+            {orderItems.map((item, idx) => (
+              <div key={idx} className="d-flex justify-content-between align-items-center">
                 <div>
-                  <span className="font-bold text-gold">{item.quantity}x</span> {item.menuItem?.name}
-                  {item.spiceLevel && <span className="ml-2 text-xs text-gray-500 italic">({item.curryBase}, {item.spiceLevel})</span>}
+                  <span className="fw-bold text-gold">{item.quantity}x</span> {item.itemName || item.menuItem?.name || 'Menu item'}
+                  {(item.spiceLevel || item.curryBase || item.extras?.length > 0) && (
+                    <span className="ms-2 small text-secondary fst-italic">
+                      {[item.curryBase, item.spiceLevel, ...(item.extras || []).map((extra) => extra.name)].filter(Boolean).join(', ')}
+                    </span>
+                  )}
                 </div>
-                <span className="text-gray-400">${item.menuItem?.price * item.quantity}</span>
+                <span className="text-secondary">${Number(item.lineTotal || item.menuItem?.price * item.quantity || 0).toFixed(2)}</span>
               </div>
             ))}
-            <div className="pt-4 mt-4 border-t border-gold/10 flex justify-between font-bold text-xl">
+            <div className="pt-3 mt-2 border-top border-gold d-flex justify-content-between fw-bold fs-5">
               <span>Total</span>
-              <span className="text-gold">${order.totalAmount}</span>
+              <span className="text-gold">${Number(order.totalAmount || 0).toFixed(2)}</span>
             </div>
+            {order.customerInfo?.paymentMethod && (
+              <div className="pt-2 d-flex justify-content-between small text-secondary">
+                <span>Payment</span>
+                <span>{order.customerInfo.paymentMethod === 'online' ? 'Paid online' : 'Cash on pickup'}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -3,7 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const connectDB = require('./config/db');
+const { connectDB } = require('./config/db');
 
 dotenv.config();
 connectDB();
@@ -23,7 +23,8 @@ app.use(express.json());
 // Routes
 app.use('/api/menu', require('./routes/menuRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes')(io));
-app.use('/api/reservations', require('./routes/reservationRoutes'));
+app.use('/api/reservations', require('./routes/reservationRoutes')(io));
+app.use('/api/settings', require('./routes/settingsRoutes')(io));
 
 // Socket.io connection
 io.on('connection', (socket) => {

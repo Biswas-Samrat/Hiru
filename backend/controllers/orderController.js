@@ -1,13 +1,12 @@
 const Order = require('../models/Order');
 const MenuItem = require('../models/MenuItem');
+const { getOrCreateSettings } = require('./settingsController');
 
 // Core Logic: Live Preparation Timer
 const calculateReadyTime = (items) => {
-  // Simple logic: sum of prep times or max prep time + buffer
-  // Here we use max prep time of items in the order + some overhead
   const maxPrepTime = items.reduce((max, item) => {
     return Math.max(max, item.prepTime || 15);
-  }, 0);
+  }, 15);
   
   const now = new Date();
   return new Date(now.getTime() + maxPrepTime * 60000);
@@ -15,7 +14,7 @@ const calculateReadyTime = (items) => {
 
 exports.getOrders = async (req, res) => {
   try {
-    const orders = await Order.find().populate('items.menuItem').sort({ createdAt: -1 });
+    const orders = await Order.find().sort({ createdAt: -1 });
     res.json(orders);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -24,7 +23,8 @@ exports.getOrders = async (req, res) => {
 
 exports.getOrderById = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate('items.menuItem');
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -33,22 +33,48 @@ exports.getOrderById = async (req, res) => {
 
 exports.createOrder = async (req, res, io) => {
   try {
-    const { items, customerInfo, totalAmount } = req.body;
+    const { items, customerInfo, totalAmount, preparationTimer } = req.body;
+    const settings = await getOrCreateSettings();
+
+    if (!settings.onlineOrderingEnabled) {
+      return res.status(403).json({ message: 'Online ordering is currently switched off.' });
+    }
     
-    // Fetch menu items to get prep times
-    const menuItemIds = items.map(i => i.menuItem);
-    const dbMenuItems = await MenuItem.find({ _id: { $in: menuItemIds } });
-    
-    const readyTime = calculateReadyTime(dbMenuItems);
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'Order must include at least one item' });
+    }
+
+    if (customerInfo?.fulfillment && customerInfo.fulfillment !== 'pickup') {
+      return res.status(400).json({ message: 'This restaurant accepts takeaway pickup orders only.' });
+    }
+
+    const mongoose = require('mongoose');
+    // Extract menuItem IDs from request items
+    const menuItemIds = items
+      .map(i => typeof i.menuItem === 'string' ? i.menuItem : i.menuItem?.toString())
+      .filter(Boolean);
+    // Keep only valid ObjectId strings to avoid Mongoose cast errors
+    const validIds = menuItemIds.filter(id => mongoose.Types.ObjectId.isValid(id));
+    const dbMenuItems = validIds.length
+      ? await MenuItem.find({ _id: { $in: validIds } })
+      : [];
+
+    const sourceItems = dbMenuItems.length ? dbMenuItems : items;
+    const prepMinutes = preparationTimer || Math.max(...sourceItems.map(item => Number(item.prepTime || 15)), 15);
+    const readyTime = calculateReadyTime([{ prepTime: prepMinutes }]);
     
     const newOrder = new Order({
       items,
-      customerInfo,
+      customerInfo: {
+        ...customerInfo,
+        fulfillment: 'pickup',
+      },
       totalAmount,
       estimatedReadyTime: readyTime,
+      preparationTimer: prepMinutes,
       status: 'Pending'
     });
-    
+
     await newOrder.save();
     
     // Emit event to admin dashboard
@@ -67,10 +93,12 @@ exports.updateOrderStatus = async (req, res, io) => {
     
     if (!order) return res.status(404).json({ message: 'Order not found' });
     
-    order.status = status;
+    if (status) {
+      order.status = status;
+    }
+    
     if (preparationTimer) {
       order.preparationTimer = preparationTimer;
-      // Update estimated ready time based on dynamic timer from admin
       const now = new Date();
       order.estimatedReadyTime = new Date(now.getTime() + preparationTimer * 60000);
     }

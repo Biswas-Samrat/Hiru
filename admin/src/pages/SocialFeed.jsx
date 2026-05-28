@@ -1,6 +1,3 @@
-import React from 'react';
-import { Instagram, Facebook, PlayCircle, Share2 } from 'lucide-react';
-
 const SocialFeed = () => {
   const posts = [
     { id: 1, type: 'Instagram', title: 'Kottu Toss Night', date: '2 hours ago', likes: '1.2k', views: '4.5k' },
@@ -9,46 +6,48 @@ const SocialFeed = () => {
   ];
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-serif font-bold">Social Intelligence</h2>
-        <button className="btn-gold flex items-center gap-2">
-          <Share2 size={18} /> Connect New Account
+    <div>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="display-6 fw-bold mb-0">Social Intelligence</h2>
+        <button className="btn btn-gold d-flex align-items-center gap-2">
+          <i className="fa-solid fa-share-nodes"></i> Connect New Account
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="row g-4">
         {posts.map(post => (
-          <div key={post.id} className="card group cursor-pointer">
-            <div className="relative aspect-square bg-gold/5 border border-gold/10 flex items-center justify-center mb-6 overflow-hidden">
-              <PlayCircle className="text-gold opacity-50 group-hover:scale-110 group-hover:opacity-100 transition-all" size={64} />
-              <div className="absolute top-4 left-4">
-                {post.type === 'Instagram' && <Instagram className="text-pink-500" />}
-                {post.type === 'TikTok' && <div className="text-cyan-400 font-bold">TikTok</div>}
-                {post.type === 'Facebook' && <Facebook className="text-blue-500" />}
+          <div key={post.id} className="col-12 col-md-6 col-lg-4">
+          <div className="admin-card p-4 h-100">
+            <div className="position-relative d-flex align-items-center justify-content-center mb-3 border border-gold" style={{ aspectRatio: '1 / 1' }}>
+              <i className="fa-solid fa-circle-play text-gold opacity-75" style={{ fontSize: '3.5rem' }}></i>
+              <div className="position-absolute top-0 start-0 p-3">
+                {post.type === 'Instagram' && <i className="fa-brands fa-instagram text-danger"></i>}
+                {post.type === 'TikTok' && <span className="text-info fw-bold">TikTok</span>}
+                {post.type === 'Facebook' && <i className="fa-brands fa-facebook text-primary"></i>}
               </div>
             </div>
             
-            <h3 className="font-bold text-lg mb-2">{post.title}</h3>
-            <p className="text-xs text-gray-500 mb-6 uppercase tracking-widest">{post.date} • LIVE PREVIEW</p>
+            <h3 className="h5 fw-bold mb-2">{post.title}</h3>
+            <p className="small text-secondary mb-3 text-uppercase">{post.date} • Live Preview</p>
             
-            <div className="flex justify-between border-t border-gold/10 pt-4 text-xs">
-              <div className="flex gap-4">
-                <span className="text-gold font-bold">{post.likes} <span className="text-gray-500 font-normal">Likes</span></span>
-                <span className="text-gold font-bold">{post.views} <span className="text-gray-500 font-normal">Views</span></span>
+            <div className="d-flex justify-content-between border-top border-gold pt-3 small">
+              <div className="d-flex gap-3">
+                <span className="text-gold fw-bold">{post.likes} <span className="text-secondary fw-normal">Likes</span></span>
+                <span className="text-gold fw-bold">{post.views} <span className="text-secondary fw-normal">Views</span></span>
               </div>
-              <button className="text-gold hover:underline">Approve for Home</button>
+              <button className="btn btn-link text-gold p-0 text-decoration-none">Approve for Home</button>
             </div>
+          </div>
           </div>
         ))}
       </div>
 
-      <div className="card border-dashed border-gold/30 flex flex-col items-center justify-center py-20 text-center">
-        <div className="w-16 h-16 bg-gold/10 rounded-full flex items-center justify-center text-gold mb-6">
-          <Share2 size={32} />
+      <div className="admin-card mt-4 border border-gold border-dashed d-flex flex-column align-items-center justify-content-center py-5 text-center">
+        <div className="rounded-circle border border-gold d-flex align-items-center justify-content-center text-gold mb-3" style={{ width: '64px', height: '64px' }}>
+          <i className="fa-solid fa-share-nodes fs-3"></i>
         </div>
-        <h3 className="text-xl font-bold mb-2">No active live streams</h3>
-        <p className="text-gray-500 max-w-sm mx-auto">Connect your TikTok or Instagram Live to show real-time kitchen theatrics on the homepage.</p>
+        <h3 className="h4 fw-bold mb-2">No active live streams</h3>
+        <p className="text-secondary mb-0" style={{ maxWidth: '480px' }}>Connect your TikTok or Instagram Live to show real-time kitchen theatrics on the homepage.</p>
       </div>
     </div>
   );
