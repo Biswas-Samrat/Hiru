@@ -6,15 +6,15 @@
  */
 const FilterBar = ({ categories = [], selected = '', onSelect = () => {} }) => {
   return (
-    <div className="my-4 flex justify-center gap-2 overflow-x-auto py-2">
+    <div className="flex flex-wrap justify-center gap-2 border-b border-[#e8e6e1] pb-6">
       {categories.map((cat) => (
         <button
           key={cat}
           type="button"
-          className={`whitespace-nowrap rounded-full border px-4 py-3 transition-colors ${
+          className={`cursor-pointer whitespace-nowrap px-4 py-2 text-sm font-semibold uppercase tracking-wide transition ${
             cat === selected
-              ? 'border-gold bg-gold font-extrabold text-[#0b0b0b]'
-              : 'border-gold/35 bg-gray-50 text-gray-900 hover:border-gold/60'
+              ? 'border-b-2 border-brand-orange text-ink'
+              : 'text-muted hover:text-ink'
           }`}
           onClick={() => onSelect(cat)}
         >

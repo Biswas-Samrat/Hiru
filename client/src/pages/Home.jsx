@@ -1,34 +1,32 @@
 import { Link } from 'react-router-dom';
 import Hero from '../components/Hero';
+import HomeFeatures from '../components/home/HomeFeatures';
+import HomeGallery from '../components/home/HomeGallery';
+import HomeTestimonials from '../components/home/HomeTestimonials';
 
 const Home = () => (
   <div>
     <Hero />
+    <HomeFeatures />
+    <HomeGallery />
+    <HomeTestimonials />
 
-    <section className="border-t border-gray-200 bg-white py-16 md:py-20">
-      <div className="mx-auto max-w-7xl px-4">
-        <div className="grid items-center gap-10 lg:grid-cols-12">
-          <div className="lg:col-span-7">
-            <p className="mb-3 font-royal text-xs font-bold uppercase tracking-widest text-gold">Welcome</p>
-            <h2 className="mb-4 text-3xl font-bold text-ink md:text-4xl">Home of Ceylon fusion in Taupo</h2>
-            <p className="text-lg text-muted leading-relaxed">
-              Hiran&apos;s brings Sri Lankan street food, fusion burgers, devilled rice plates, and a few dine-in tables into one polished takeaway-first experience.
-            </p>
-          </div>
-          <div className="lg:col-span-5">
-            <div className="card-light p-8">
-              <span className="mb-2 block font-royal text-xs font-bold uppercase tracking-widest text-gold">Live prep timer</span>
-              <strong className="mb-4 block text-lg text-ink">Every takeaway order gets a ready-time countdown.</strong>
-              <div className="flex flex-wrap gap-3">
-                <Link to="/order-online" className="btn-primary text-sm">
-                  Order takeaway
-                </Link>
-                <Link to="/my-orders" className="btn-outline text-sm">
-                  My orders
-                </Link>
-              </div>
-            </div>
-          </div>
+    <section className="border-t border-[#e8e6e1] bg-white py-14 md:py-16">
+      <div className="mx-auto max-w-4xl px-4 text-center">
+        <h2 className="font-serif text-2xl font-bold text-ink md:text-3xl">Ready when you are</h2>
+        <p className="mx-auto mt-3 max-w-lg text-muted">
+          Order takeaway for pickup, book a table, or track your order live from our kitchen.
+        </p>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link to="/order-online" className="btn-primary cursor-pointer">
+            Order takeaway
+          </Link>
+          <Link to="/book-a-table" className="btn-outline cursor-pointer bg-white">
+            Book a table
+          </Link>
+          <Link to="/my-orders" className="btn-outline cursor-pointer bg-white">
+            My orders
+          </Link>
         </div>
       </div>
     </section>

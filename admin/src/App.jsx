@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Orders from './pages/Orders';
 import Reservations from './pages/Reservations';
 import MenuManagement from './pages/MenuManagement';
+import GalleryManagement from './pages/GalleryManagement';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 
@@ -35,6 +36,7 @@ const Sidebar = ({ mobileOpen, onClose }) => {
     { name: 'Orders', icon: 'fa-solid fa-cart-shopping', path: '/orders' },
     { name: 'Reservations', icon: 'fa-solid fa-calendar-days', path: '/reservations' },
     { name: 'Menu', icon: 'fa-solid fa-utensils', path: '/menu' },
+    { name: 'Gallery', icon: 'fa-solid fa-images', path: '/gallery' },
     { name: 'Settings', icon: 'fa-solid fa-gear', path: '/settings' },
   ];
 
@@ -120,6 +122,7 @@ const AdminLayout = () => {
             <Route path="/orders" element={<Orders />} />
             <Route path="/reservations" element={<Reservations />} />
             <Route path="/menu" element={<MenuManagement />} />
+            <Route path="/gallery" element={<GalleryManagement />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>

@@ -147,24 +147,34 @@ const OrderOnlinePage = () => {
     toast.success(`${item.name} added to cart`);
   };
 
+  const handleAddClick = (item) => {
+    if (item.customization?.curryBase || item.customization?.spice || item.customization?.extras) {
+      openOptions(item);
+    } else {
+      addToCart(item);
+    }
+  };
+
+  const placeholderImage =
+    'https://images.unsplash.com/photo-1585937421612-70a008296fbe?auto=format&fit=crop&w=400&q=80';
+
   return (
-    <div className="min-h-screen bg-white pb-16 pt-28 text-gray-900">
-      <div className="mx-auto max-w-7xl px-4">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="min-h-screen bg-[#f5f4f0] pb-20 pt-28 text-ink">
+      <div className="mx-auto max-w-6xl px-4 sm:px-8">
+        <div className="mb-10 flex flex-col items-center gap-4 text-center sm:flex-row sm:items-end sm:justify-between sm:text-left">
           <div>
-            <p className="mb-3 font-royal text-xs font-bold uppercase tracking-widest text-gold">Takeaway Only</p>
-            <h1 className="mb-2 text-3xl font-bold text-gray-900 md:text-4xl">Build your collection order.</h1>
-            <p className="max-w-xl text-gray-600">
-              Choose dishes, add them to your cart, then checkout for pickup. Delivery is not available for this restaurant.
+            <h1 className="font-serif text-4xl font-bold tracking-tight text-ink md:text-5xl">Order online</h1>
+            <p className="mt-2 max-w-md text-sm text-muted">
+              Pick your favourites, add to cart, and collect from Taupo. Takeaway only.
             </p>
           </div>
           <Link
             to="/cart"
-            className="inline-flex shrink-0 items-center gap-3 rounded-full border border-gray-200 bg-gray-50 px-5 py-3 shadow-sm transition-colors hover:border-gold/50"
+            className="inline-flex cursor-pointer items-center gap-3 rounded-full border border-[#e8e6e1] bg-white px-5 py-2.5 text-sm shadow-sm transition hover:border-gold/40"
           >
-            <i className="fa-solid fa-cart-shopping text-gold" />
+            <i className="fa-solid fa-cart-shopping text-brand-orange" />
             <span className="font-semibold">{cart.length} items</span>
-            <b className="text-gold">{formatCurrency(cartTotal)}</b>
+            <b className="font-bold text-ink">{formatCurrency(cartTotal)}</b>
           </Link>
         </div>
 
@@ -174,42 +184,51 @@ const OrderOnlinePage = () => {
           onSelect={setFilterCategory}
         />
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-x-12 gap-y-2 md:grid-cols-2 md:gap-x-16 lg:gap-x-20">
           {visibleItems.map((item) => (
             <article
-              className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md transition-shadow hover:shadow-lg"
               key={item.id}
+              className="group flex gap-4 border-b border-[#e8e6e1]/80 py-6 last:border-b-0 md:py-7"
             >
-              <img src={item.image} alt={item.name} className="h-44 w-full object-cover" />
-              <div className="p-4">
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <h2 className="text-lg font-bold text-gray-900">
-                    {item.code ? `${item.code}. ` : ''}{item.name}
-                  </h2>
-                  <span className="shrink-0 font-bold text-gold">{formatCurrency(item.price)}</span>
-                </div>
-                <p className="mb-4 text-sm text-gray-600">{item.description}</p>
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-amber-400 text-black transition-colors hover:bg-amber-300"
-                    onClick={() =>
-                      item.customization?.curryBase || item.customization?.spice || item.customization?.extras
-                        ? openOptions(item)
-                        : addToCart(item)
-                    }
-                    title="Add to Cart"
-                  >
-                    <i className="fa-solid fa-bag-shopping" />
-                  </button>
-                </div>
+              <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg bg-[#ebe9e4] sm:h-24 sm:w-24">
+                <img
+                  src={item.image || placeholderImage}
+                  alt={item.name}
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  loading="lazy"
+                />
+              </div>
+
+              <div className="flex min-w-0 flex-1 flex-col justify-center pr-2">
+                <h2 className="font-serif text-xl font-bold leading-tight text-ink sm:text-2xl">
+                  {item.code ? `${item.code}. ` : ''}
+                  {item.name}
+                </h2>
+                <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted">
+                  {item.description}
+                </p>
+              </div>
+
+              <div className="flex shrink-0 flex-col items-end justify-center gap-3">
+                <span className="font-serif text-lg font-bold tabular-nums text-ink sm:text-xl">
+                  {formatCurrency(item.price)}
+                </span>
+                <button
+                  type="button"
+                  className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-brand-orange text-ink shadow-md transition hover:scale-105 hover:bg-[#e85f2a] active:scale-95"
+                  onClick={() => handleAddClick(item)}
+                  title="Add to cart"
+                  aria-label={`Add ${item.name} to cart`}
+                >
+                  <i className="fa-solid fa-bag-shopping text-base" />
+                </button>
               </div>
             </article>
           ))}
         </div>
 
         {visibleItems.length === 0 && (
-          <div className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-8 text-center text-gray-600">
+          <div className="mt-12 py-16 text-center text-muted">
             No available items in this category right now.
           </div>
         )}
@@ -324,7 +343,7 @@ const OrderOnlinePage = () => {
 
             <button
               type="button"
-              className="w-full rounded-full bg-amber-400 py-3 font-bold text-black hover:bg-amber-300"
+              className="w-full cursor-pointer rounded-full bg-brand-orange py-3 font-bold text-ink hover:bg-[#e85f2a]"
               onClick={() => addToCart(selectedItem)}
             >
               Add to Cart

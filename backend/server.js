@@ -5,12 +5,14 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const { connectDB } = require('./config/db');
 const { ensureDefaultAdmin } = require('./utils/ensureAdmin');
+const { ensureDefaultGallery } = require('./utils/ensureGallery');
 
 dotenv.config();
 
 const startServer = async () => {
   await connectDB();
   await ensureDefaultAdmin();
+  await ensureDefaultGallery();
 };
 startServer();
 
@@ -33,6 +35,7 @@ app.use('/api/menu', require('./routes/menuRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes')(io));
 app.use('/api/reservations', require('./routes/reservationRoutes')(io));
 app.use('/api/settings', require('./routes/settingsRoutes')(io));
+app.use('/api/gallery', require('./routes/galleryRoutes'));
 
 // Socket.io connection
 io.on('connection', (socket) => {
