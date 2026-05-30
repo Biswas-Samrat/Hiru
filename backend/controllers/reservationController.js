@@ -5,8 +5,12 @@ const MAX_TABLES_PER_SLOT = Number(process.env.MAX_TABLES_PER_SLOT || 4);
 
 exports.getReservations = async (req, res) => {
   try {
-    const reservations = await Reservation.find().sort({ date: 1, time: 1 });
-    res.json(reservations);
+    const limit = Math.min(Number(req.query.limit) || 150, 300);
+    const reservations = await Reservation.find()
+      .sort({ date: -1, time: 1 })
+      .limit(limit)
+      .lean();
+    res.json(reservations.map((r) => ({ ...r, id: r._id })));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

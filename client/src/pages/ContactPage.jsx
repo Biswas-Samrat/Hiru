@@ -2,7 +2,7 @@ import Contact from '../components/Contact';
 
 const ContactPage = () => {
   return (
-    <div className="section-dark" style={{ paddingTop: '110px' }}>
+    <div className="bg-cream pt-28">
       <Contact />
     </div>
   );

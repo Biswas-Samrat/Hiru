@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import FilterBar from '../components/FilterBar';
 import { Link } from 'react-router-dom';
+import FilterBar from '../components/FilterBar';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import {
@@ -13,8 +12,9 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const CART_KEY = 'hirans-cart';
-// Retained for legacy tabs if needed
-const ORDER_CATEGORIES = ['Kottu', 'Rice', 'Burgers', 'Fusion'];
+
+const inputLight =
+  'w-full min-h-12 rounded-lg border border-gray-200 bg-gray-50 px-3 text-gray-900 placeholder:text-gray-400 focus:border-gold focus:outline-none';
 
 const getCart = () => {
   try {
@@ -50,12 +50,9 @@ const normaliseApiItem = (item) => ({
 
 const OrderOnlinePage = () => {
   const [menuItems, setMenuItems] = useState(customerMenu.map((item) => ({ ...item, displayCategory: displayCategory(item.category) })));
-  // Filter state – default "All" shows every item
   const [filterCategory, setFilterCategory] = useState('All');
-  const [activeCategory, setActiveCategory] = useState('Kottu');
   const [selectedItem, setSelectedItem] = useState(null);
   const [cart, setCart] = useState(getCart);
-  const [orderingEnabled, setOrderingEnabled] = useState(true);
   const [options, setOptions] = useState({
     quantity: 1,
     curryBase: curryBases[0],
@@ -68,24 +65,16 @@ const OrderOnlinePage = () => {
   useEffect(() => {
     let active = true;
 
-    Promise.allSettled([
-      axios.get(`${API_URL}/api/menu`),
-      axios.get(`${API_URL}/api/settings`),
-    ]).then(([menuResult, settingsResult]) => {
+    axios.get(`${API_URL}/api/menu`).then((menuResult) => {
       if (!active) return;
-
-      if (menuResult.status === 'fulfilled' && Array.isArray(menuResult.value.data) && menuResult.value.data.length) {
+      if (Array.isArray(menuResult.data) && menuResult.data.length) {
         setMenuItems(
-          menuResult.value.data
+          menuResult.data
             .filter((item) => item.isAvailable !== false && item.isOutOfStock !== true)
             .map(normaliseApiItem)
         );
       }
-
-      if (settingsResult.status === 'fulfilled') {
-        setOrderingEnabled(settingsResult.value.data.onlineOrderingEnabled !== false);
-      }
-    });
+    }).catch(() => {});
 
     const syncCart = () => setCart(getCart());
     window.addEventListener('hirans-cart-updated', syncCart);
@@ -117,41 +106,8 @@ const OrderOnlinePage = () => {
     });
   };
 
-  const orderNow = (item) => {
-    if (!item || !orderingEnabled) return;
-    // Direct order without customization options
-    const unitPrice = Number(item.price);
-    const cartIdParts = [
-      item.id,
-      getCart().length,
-      1,
-      unitPrice,
-      null,
-      null,
-      ''
-    ];
-    const cartItem = {
-      cartId: cartIdParts.filter(Boolean).join('-'),
-      menuItem: item.id,
-      itemName: item.name,
-      quantity: 1,
-      price: Number(item.price),
-      unitPrice,
-      lineTotal: unitPrice,
-      prepTime: item.prepTime || 15,
-      category: item.category,
-      curryBase: null,
-      spiceLevel: null,
-      extras: [],
-    };
-    const nextCart = [...getCart(), cartItem];
-    saveCart(nextCart);
-    setCart(nextCart);
-    toast.success(`${item.name} added to cart`);
-  };
-
   const addToCart = (item = selectedItem) => {
-    if (!item || !orderingEnabled) return;
+    if (!item) return;
 
     const extras = [
       options.addCheese ? { name: 'Add Cheese', price: 5 } : null,
@@ -192,58 +148,60 @@ const OrderOnlinePage = () => {
   };
 
   return (
-    <div className="order-page redesigned-order-page">
-      <div className="container">
-        <div className="order-hero">
+    <div className="min-h-screen bg-white pb-16 pt-28 text-gray-900">
+      <div className="mx-auto max-w-7xl px-4">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="eyebrow">Takeaway Only</p>
-            <h1>Build your collection order.</h1>
-            <p>Choose dishes, add them to your cart, then checkout for pickup. Delivery is not available for this restaurant.</p>
+            <p className="mb-3 font-royal text-xs font-bold uppercase tracking-widest text-gold">Takeaway Only</p>
+            <h1 className="mb-2 text-3xl font-bold text-gray-900 md:text-4xl">Build your collection order.</h1>
+            <p className="max-w-xl text-gray-600">
+              Choose dishes, add them to your cart, then checkout for pickup. Delivery is not available for this restaurant.
+            </p>
           </div>
-          <Link to="/cart" className="cart-summary-pill">
-            <i className="fa-solid fa-cart-shopping" />
-            <span>{cart.length} items</span>
-            <b>{formatCurrency(cartTotal)}</b>
+          <Link
+            to="/cart"
+            className="inline-flex shrink-0 items-center gap-3 rounded-full border border-gray-200 bg-gray-50 px-5 py-3 shadow-sm transition-colors hover:border-gold/50"
+          >
+            <i className="fa-solid fa-cart-shopping text-gold" />
+            <span className="font-semibold">{cart.length} items</span>
+            <b className="text-gold">{formatCurrency(cartTotal)}</b>
           </Link>
         </div>
-        {/* Filter Bar – centered and scrolls with page */}
+
         <FilterBar
-          categories={['All', ...new Set(menuItems.map(i => i.displayCategory))]}
+          categories={['All', ...new Set(menuItems.map((i) => i.displayCategory))]}
           selected={filterCategory}
           onSelect={setFilterCategory}
         />
 
-        {!orderingEnabled && (
-          <div className="service-disabled">
-            <i className="fa-solid fa-circle-pause" />
-            Online ordering is currently switched off by the restaurant.
-          </div>
-        )}
-
-
-
-        <div className="order-menu-grid">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {visibleItems.map((item) => (
-            <article className="order-item-card" key={item.id}>
-              <img src={item.image} alt={item.name} className="order-item-img" />
-              <div className="order-item-details">
-                <div className="order-item-header">
-                  <h2 className="order-item-title">{item.code ? `${item.code}. ` : ''}{item.name}</h2>
-                  <span className="order-item-price">{formatCurrency(item.price)}</span>
+            <article
+              className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md transition-shadow hover:shadow-lg"
+              key={item.id}
+            >
+              <img src={item.image} alt={item.name} className="h-44 w-full object-cover" />
+              <div className="p-4">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    {item.code ? `${item.code}. ` : ''}{item.name}
+                  </h2>
+                  <span className="shrink-0 font-bold text-gold">{formatCurrency(item.price)}</span>
                 </div>
-                <p className="order-item-desc">{item.description}</p>
-                <div className="order-item-actions">
+                <p className="mb-4 text-sm text-gray-600">{item.description}</p>
+                <div className="flex justify-end">
                   <button
                     type="button"
-                    className="order-item-btn btn-primary"
-                    disabled={!orderingEnabled}
-                    onClick={() => item.customization?.curryBase || item.customization?.spice || item.customization?.extras ? openOptions(item) : addToCart(item)}
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-amber-400 text-black transition-colors hover:bg-amber-300"
+                    onClick={() =>
+                      item.customization?.curryBase || item.customization?.spice || item.customization?.extras
+                        ? openOptions(item)
+                        : addToCart(item)
+                    }
                     title="Add to Cart"
                   >
                     <i className="fa-solid fa-bag-shopping" />
                   </button>
-                  {/* Direct Order button – bypasses customization */}
-
                 </div>
               </div>
             </article>
@@ -251,35 +209,61 @@ const OrderOnlinePage = () => {
         </div>
 
         {visibleItems.length === 0 && (
-          <div className="empty-state-panel">No available items in this category right now.</div>
+          <div className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-8 text-center text-gray-600">
+            No available items in this category right now.
+          </div>
         )}
       </div>
 
       {selectedItem && (
-        <div className="modal-backdrop-custom option-modal" onClick={() => setSelectedItem(null)}>
-          <div className="option-dialog" onClick={e => e.stopPropagation()}>
-            <button type="button" className="modal-close" aria-label="Close" onClick={() => setSelectedItem(null)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setSelectedItem(null)}
+        >
+          <div
+            className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
+              aria-label="Close"
+              onClick={() => setSelectedItem(null)}
+            >
               <i className="fa-solid fa-xmark" />
             </button>
-            <img src={selectedItem.image} alt={selectedItem.name} />
-            <h2>{selectedItem.name}</h2>
-            <p>{selectedItem.description}</p>
+            <img src={selectedItem.image} alt={selectedItem.name} className="mb-4 h-40 w-full rounded-lg object-cover" />
+            <h2 className="mb-2 text-xl font-bold text-gray-900">{selectedItem.name}</h2>
+            <p className="mb-4 text-sm text-gray-600">{selectedItem.description}</p>
 
             {selectedItem.customization?.curryBase && (
-              <label>
+              <label className="mb-4 block text-sm font-semibold text-gray-700">
                 Choose Your Curry Base
-                <select value={options.curryBase} onChange={(e) => setOptions({ ...options, curryBase: e.target.value })}>
+                <select
+                  className={`${inputLight} mt-1`}
+                  value={options.curryBase}
+                  onChange={(e) => setOptions({ ...options, curryBase: e.target.value })}
+                >
                   {curryBases.map((base) => <option key={base}>{base}</option>)}
                 </select>
               </label>
             )}
 
             {selectedItem.customization?.spice && (
-              <label>
+              <label className="mb-4 block text-sm font-semibold text-gray-700">
                 Select Spice
-                <div className="segmented">
+                <div className="mt-2 flex flex-wrap gap-2">
                   {spiceLevels.map((level) => (
-                    <button key={level} type="button" className={options.spiceLevel === level ? 'active' : ''} onClick={() => setOptions({ ...options, spiceLevel: level })}>
+                    <button
+                      key={level}
+                      type="button"
+                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+                        options.spiceLevel === level
+                          ? 'border-gold bg-gold text-[#0b0b0b]'
+                          : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gold/50'
+                      }`}
+                      onClick={() => setOptions({ ...options, spiceLevel: level })}
+                    >
                       {level}
                     </button>
                   ))}
@@ -287,25 +271,62 @@ const OrderOnlinePage = () => {
               </label>
             )}
 
-            <div className="extras-grid">
+            <div className="mb-4 space-y-2">
               {selectedItem.customization?.extras && (
                 <>
-                  <label><input type="checkbox" checked={options.addCheese} onChange={(e) => setOptions({ ...options, addCheese: e.target.checked })} /> Add Cheese +$5</label>
-                  <label><input type="checkbox" checked={options.addEgg} onChange={(e) => setOptions({ ...options, addEgg: e.target.checked })} /> Add Egg +$3</label>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={options.addCheese}
+                      onChange={(e) => setOptions({ ...options, addCheese: e.target.checked })}
+                    />
+                    Add Cheese +$5
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={options.addEgg}
+                      onChange={(e) => setOptions({ ...options, addEgg: e.target.checked })}
+                    />
+                    Add Egg +$3
+                  </label>
                 </>
               )}
               {selectedItem.displayCategory === 'Burgers' && (
-                <label><input type="checkbox" checked={options.combo} onChange={(e) => setOptions({ ...options, combo: e.target.checked })} /> Fries & drink combo +$7</label>
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={options.combo}
+                    onChange={(e) => setOptions({ ...options, combo: e.target.checked })}
+                  />
+                  Fries & drink combo +$7
+                </label>
               )}
             </div>
 
-            <div className="quantity-row">
-              <button type="button" onClick={() => setOptions({ ...options, quantity: Math.max(1, options.quantity - 1) })}>-</button>
-              <span>{options.quantity}</span>
-              <button type="button" onClick={() => setOptions({ ...options, quantity: options.quantity + 1 })}>+</button>
+            <div className="mb-6 flex items-center justify-center gap-4">
+              <button
+                type="button"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-lg font-bold hover:bg-gray-50"
+                onClick={() => setOptions({ ...options, quantity: Math.max(1, options.quantity - 1) })}
+              >
+                -
+              </button>
+              <span className="min-w-[2rem] text-center text-lg font-bold">{options.quantity}</span>
+              <button
+                type="button"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-lg font-bold hover:bg-gray-50"
+                onClick={() => setOptions({ ...options, quantity: options.quantity + 1 })}
+              >
+                +
+              </button>
             </div>
 
-            <button type="button" className="btn btn-warning text-dark fw-bold w-100 py-3" onClick={() => addToCart(selectedItem)}>
+            <button
+              type="button"
+              className="w-full rounded-full bg-amber-400 py-3 font-bold text-black hover:bg-amber-300"
+              onClick={() => addToCart(selectedItem)}
+            >
               Add to Cart
             </button>
           </div>

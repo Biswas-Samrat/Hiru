@@ -1,162 +1,206 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import io from 'socket.io-client';
+import api, { API_URL } from '../lib/api';
+import { useCachedQuery } from '../hooks/useCachedQuery';
+import { setCached } from '../lib/adminCache';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const socket = io(API_URL);
-
 const activeStatuses = ['Pending', 'Accepted', 'Preparing', 'Almost Ready', 'Ready for Pickup'];
 
 const Orders = () => {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: orders, loading, setData: setOrders } = useCachedQuery(
+    'orders',
+    () => api.get('/api/orders').then((res) => res.data),
+    []
+  );
   const [prepTimes, setPrepTimes] = useState({});
+  const [updatingId, setUpdatingId] = useState(null);
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const res = await axios.get(`${API_URL}/api/orders`);
-        setOrders(res.data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchOrders();
-
     socket.on('newOrder', (newOrder) => {
-      setOrders((prev) => [newOrder, ...prev]);
+      setOrders((prev) => {
+        const next = [newOrder, ...(prev || [])];
+        setCached('orders', next);
+        return next;
+      });
     });
-
     socket.on('adminOrderUpdate', (updatedOrder) => {
-      setOrders((prev) => prev.map((order) => (order.id === updatedOrder.id ? updatedOrder : order)));
+      setOrders((prev) => {
+        const next = (prev || []).map((order) =>
+          (order.id || order._id) === (updatedOrder.id || updatedOrder._id) ? updatedOrder : order
+        );
+        setCached('orders', next);
+        return next;
+      });
     });
 
     return () => {
       socket.off('newOrder');
       socket.off('adminOrderUpdate');
     };
-  }, []);
+  }, [setOrders]);
 
   const updateStatus = async (id, status, prepTimer = null) => {
+    setUpdatingId(id);
     try {
-      const res = await axios.put(`${API_URL}/api/orders/${id}/status`, {
-        status,
-        preparationTimer: prepTimer,
+      const res = await api.put(`/api/orders/${id}/status`, { status, preparationTimer: prepTimer });
+      setOrders((current) => {
+        const next = (current || []).map((order) => ((order.id || order._id) === id ? res.data : order));
+        setCached('orders', next);
+        return next;
       });
-      setOrders((current) => current.map((order) => (order.id === id ? res.data : order)));
     } catch (err) {
       console.error(err);
+    } finally {
+      setUpdatingId(null);
     }
   };
 
-  if (loading) {
-    return <div className="d-flex align-items-center justify-content-center h-100 text-gold"><i className="fa-solid fa-spinner fa-spin fs-3" /></div>;
-  }
+  const activeOrders = (orders ?? []).filter((order) => activeStatuses.includes(order.status));
 
   return (
     <div>
-      <div className="admin-page-heading">
+      <div className="page-header">
         <div>
-          <p className="text-gold text-uppercase small fw-bold mb-2">Order Management</p>
-          <h2 className="display-6 fw-bold mb-0">Live takeaway orders</h2>
+          <p className="eyebrow">Orders</p>
+          <h2 className="page-title">Live takeaway orders</h2>
         </div>
-        <span className="live-status-pill"><span /> Connected to kitchen</span>
+        <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-2 text-xs font-bold uppercase text-green-800">
+          <span className="h-2 w-2 rounded-full bg-green-500" />
+          Kitchen connected
+        </div>
       </div>
 
-      <div className="admin-tabs mb-4">
-        <a className="active" href="/orders">Takeaway Orders</a>
-        <a href="/reservations">Table Bookings</a>
-      </div>
-
-      <div className="row g-4">
-        {orders.filter((order) => activeStatuses.includes(order.status)).map((order) => (
-          <div key={order.id} className="col-12 col-xl-6">
-            <div className={`admin-card p-4 h-100 order-admin-card ${order.status === 'Pending' ? 'urgent' : ''}`}>
-              <div className="d-flex justify-content-between align-items-start mb-4">
-                <div>
-                  <h3 className="h4 fw-bold text-gold text-uppercase">#{String(order.id).padStart(4, '0')}</h3>
-                  <p className="text-secondary small mb-0">{order.customerInfo?.name} | {order.customerInfo?.phone}</p>
-                  <p className="text-secondary small mb-0">Takeaway pickup | {order.customerInfo?.paymentMethod === 'online' ? 'Paid online' : 'Cash on pickup'}</p>
-                  {order.customerInfo?.notes && <p className="small text-warning mt-2 mb-0">{order.customerInfo.notes}</p>}
-                </div>
-                <div className="text-end">
-                  <span className={`badge border ${order.status === 'Pending' ? 'border-gold text-gold' : 'border-secondary text-secondary'}`}>
-                    {order.status}
-                  </span>
-                  <p className="small text-secondary mt-2 mb-0">{new Date(order.createdAt).toLocaleTimeString()}</p>
-                </div>
-              </div>
-
-              <div className="vstack gap-2 mb-4">
-                {(order.items || []).map((item, index) => (
-                  <div key={`${order.id}-${index}`} className="d-flex justify-content-between small order-line">
-                    <span>{item.quantity}x {item.itemName || item.menuItem?.name || 'Item'}</span>
-                    <span className="text-secondary">{[item.curryBase, item.spiceLevel, ...(item.extras || []).map((extra) => extra.name)].filter(Boolean).join(' | ')}</span>
+      {loading && !(orders ?? []).length ? (
+        <div className="grid gap-4 xl:grid-cols-2">
+          {[1, 2].map((n) => (
+            <div key={n} className="card h-48 animate-pulse bg-surface" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-2">
+          {activeOrders.map((order) => {
+            const orderId = order.id || order._id;
+            const busy = updatingId === orderId;
+            return (
+              <div
+                key={orderId}
+                className={`card p-5 ${order.status === 'Pending' ? 'ring-2 ring-gold/40' : ''}`}
+              >
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-xl font-bold text-gold">#{String(orderId).slice(-6).toUpperCase()}</h3>
+                    <p className="text-sm text-muted">
+                      {order.customerInfo?.name} · {order.customerInfo?.phone}
+                    </p>
+                    <p className="text-sm text-muted">
+                      Pickup · {order.customerInfo?.paymentMethod === 'online' ? 'Paid online' : 'Pay on collection'}
+                    </p>
+                    {order.customerInfo?.notes && (
+                      <p className="mt-2 text-sm text-amber-800">{order.customerInfo.notes}</p>
+                    )}
                   </div>
-                ))}
-              </div>
+                  <div className="text-end">
+                    <span className="rounded-full bg-surface px-3 py-1 text-xs font-bold text-ink">{order.status}</span>
+                    <p className="mt-2 text-xs text-muted">{new Date(order.createdAt).toLocaleTimeString()}</p>
+                  </div>
+                </div>
 
-              <div className="d-flex flex-wrap gap-2 pt-3 border-top border-gold">
-                {order.status === 'Pending' && (
-                  <>
-                    <button type="button" onClick={() => updateStatus(order.id, 'Accepted')} className="btn btn-success flex-grow-1 fw-bold">
-                      Accept
-                    </button>
-                    <button type="button" onClick={() => updateStatus(order.id, 'Rejected')} className="btn btn-outline-danger flex-grow-1 fw-bold">
-                      Reject
-                    </button>
-                  </>
-                )}
+                <div className="mb-4 space-y-2">
+                  {(order.items || []).map((item, index) => (
+                    <div key={`${orderId}-${index}`} className="flex justify-between border-b border-border pb-2 text-sm">
+                      <span>
+                        {item.quantity}x {item.itemName || 'Item'}
+                      </span>
+                      <span className="text-muted">
+                        {[item.curryBase, item.spiceLevel, ...(item.extras || []).map((extra) => extra.name)]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
 
-                {order.status === 'Accepted' && (
-                  <div className="d-flex align-items-center gap-2 w-100">
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="Prep mins"
-                      value={prepTimes[order.id] || order.preparationTimer || 15}
-                      onChange={(event) => setPrepTimes({ ...prepTimes, [order.id]: event.target.value })}
-                      className="form-control form-control-sm bg-black text-white border-gold"
-                      style={{ maxWidth: '130px' }}
-                    />
+                <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+                  {order.status === 'Pending' && (
+                    <>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => updateStatus(orderId, 'Accepted')}
+                        className="btn-primary flex-grow bg-green-700 hover:bg-green-800"
+                      >
+                        {busy ? <i className="fa-solid fa-spinner fa-spin" /> : 'Accept'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => updateStatus(orderId, 'Rejected')}
+                        className="btn-secondary flex-grow text-red-600"
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                  {order.status === 'Accepted' && (
+                    <div className="flex w-full gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Mins"
+                        value={prepTimes[orderId] || order.preparationTimer || 15}
+                        onChange={(e) => setPrepTimes({ ...prepTimes, [orderId]: e.target.value })}
+                        className="input-field max-w-[100px]"
+                      />
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => updateStatus(orderId, 'Preparing', prepTimes[orderId] || order.preparationTimer || 15)}
+                        className="btn-primary flex-grow"
+                      >
+                        {busy ? <i className="fa-solid fa-spinner fa-spin" /> : 'Start prep'}
+                      </button>
+                    </div>
+                  )}
+                  {order.status === 'Preparing' && (
                     <button
                       type="button"
-                      onClick={() => updateStatus(order.id, 'Preparing', prepTimes[order.id] || order.preparationTimer || 15)}
-                      className="btn btn-gold flex-grow-1"
+                      disabled={busy}
+                      onClick={() => updateStatus(orderId, 'Almost Ready')}
+                      className="btn-primary flex-grow"
                     >
-                      Start Prep
+                      {busy ? <i className="fa-solid fa-spinner fa-spin" /> : 'Almost ready'}
                     </button>
-                  </div>
-                )}
-
-                {order.status === 'Preparing' && (
-                  <button type="button" onClick={() => updateStatus(order.id, 'Almost Ready')} className="btn btn-warning flex-grow-1 fw-bold">
-                    Mark Almost Ready
-                  </button>
-                )}
-
-                {order.status === 'Almost Ready' && (
-                  <button type="button" onClick={() => updateStatus(order.id, 'Ready for Pickup')} className="btn btn-success flex-grow-1 fw-bold">
-                    Ready for Pickup
-                  </button>
-                )}
-
-                {order.status === 'Ready for Pickup' && (
-                  <button type="button" onClick={() => updateStatus(order.id, 'Completed')} className="btn btn-outline-light flex-grow-1 fw-bold">
-                    Finish / Collected
-                  </button>
-                )}
+                  )}
+                  {order.status === 'Almost Ready' && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => updateStatus(orderId, 'Ready for Pickup')}
+                      className="btn-primary flex-grow bg-green-700 hover:bg-green-800"
+                    >
+                      {busy ? <i className="fa-solid fa-spinner fa-spin" /> : 'Ready for pickup'}
+                    </button>
+                  )}
+                  {order.status === 'Ready for Pickup' && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => updateStatus(orderId, 'Completed')}
+                      className="btn-secondary flex-grow"
+                    >
+                      {busy ? <i className="fa-solid fa-spinner fa-spin" /> : 'Collected'}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
-        {orders.filter((order) => activeStatuses.includes(order.status)).length === 0 && (
-          <div className="empty-admin-state">No active takeaway orders.</div>
-        )}
-      </div>
+            );
+          })}
+          {activeOrders.length === 0 && (
+            <div className="card col-span-full p-12 text-center text-muted">No active takeaway orders right now.</div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

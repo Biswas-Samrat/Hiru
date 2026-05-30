@@ -4,6 +4,7 @@ const settingsController = require('../controllers/settingsController');
 
 module.exports = (io) => {
   router.get('/', settingsController.getSettings);
-  router.put('/', (req, res) => settingsController.updateSettings(req, res, io));
+  const authMiddleware = require('../middleware/authMiddleware');
+  router.put('/', authMiddleware, (req, res) => settingsController.updateSettings(req, res, io));
   return router;
 };

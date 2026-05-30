@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const CATEGORIES = ['Kottu', 'Rice', 'Burgers', 'Fusion'];
+import { useState } from 'react';
+import api from '../lib/api';
+import { invalidateCache } from '../lib/adminCache';
+import { useCachedQuery } from '../hooks/useCachedQuery';
+import MenuItemDialog, { CATEGORIES } from '../components/MenuItemDialog';
 
 const emptyForm = {
   name: '',
@@ -17,60 +17,87 @@ const emptyForm = {
   prepTime: 15,
 };
 
+const itemToForm = (item) => ({
+  name: item.name || '',
+  description: item.description || '',
+  price: item.price || '',
+  category: CATEGORIES.includes(item.category) ? item.category : 'Fusion',
+  image: item.image || '',
+  isVegetarian: Boolean(item.isVegetarian),
+  spicyLevel: Number(item.spicyLevel || (item.isSpicy ? 2 : 0)),
+  isFeatured: Boolean(item.isFeatured),
+  isAvailable: item.isAvailable !== false && item.isOutOfStock !== true,
+  prepTime: item.prepTime || 15,
+});
+
 const MenuManagement = () => {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: items, loading, setData, refresh } = useCachedQuery(
+    'menu',
+    () => api.get('/api/menu').then((res) => res.data),
+    []
+  );
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState('add');
   const [editingItem, setEditingItem] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
-  useEffect(() => {
-    let active = true;
-
-    axios.get(`${API_URL}/api/menu`)
-      .then((res) => {
-        if (active) {
-          setItems(res.data);
-        }
-      })
-      .catch((err) => console.error(err))
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const openForm = (item = null) => {
-    setEditingItem(item);
-    setForm(item ? {
-      name: item.name || '',
-      description: item.description || '',
-      price: item.price || '',
-      category: CATEGORIES.includes(item.category) ? item.category : 'Fusion',
-      image: item.image || '',
-      isVegetarian: Boolean(item.isVegetarian),
-      spicyLevel: Number(item.spicyLevel || (item.isSpicy ? 2 : 0)),
-      isFeatured: Boolean(item.isFeatured),
-      isAvailable: item.isAvailable !== false && item.isOutOfStock !== true,
-      prepTime: item.prepTime || 15,
-    } : emptyForm);
+  const openAdd = () => {
+    setDialogMode('add');
+    setEditingItem(null);
+    setForm(emptyForm);
+    setDialogOpen(true);
   };
 
-  const handleImageUpload = (event) => {
+  const openEdit = async (item) => {
+    const id = item.id || item._id;
+    setDialogMode('edit');
+    setEditingItem(item);
+    setForm(itemToForm(item));
+    setDialogOpen(true);
+
+    if (!item.image || String(item.image).startsWith('data:')) {
+      try {
+        const res = await api.get(`/api/menu/${id}`);
+        setForm(itemToForm(res.data));
+        setEditingItem(res.data);
+      } catch {
+        /* use list data */
+      }
+    }
+  };
+
+  const closeDialog = () => {
+    if (saving) return;
+    setDialogOpen(false);
+    setEditingItem(null);
+    setForm(emptyForm);
+  };
+
+  const handleImageUpload = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => setForm((current) => ({ ...current, image: reader.result }));
-    reader.readAsDataURL(file);
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.append('image', file);
+      const res = await api.post('/api/upload', body, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setForm((current) => ({ ...current, image: res.data.url }));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Image upload failed.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const saveItem = async (event) => {
     event.preventDefault();
+    setSaving(true);
     const payload = {
       ...form,
       price: Number(form.price),
@@ -80,137 +107,176 @@ const MenuManagement = () => {
       isOutOfStock: !form.isAvailable,
     };
 
-    if (editingItem) {
-      const res = await axios.put(`${API_URL}/api/menu/${editingItem.id || editingItem._id}`, payload);
-      setItems((current) => current.map((item) => (item.id === res.data.id ? res.data : item)));
-    } else {
-      const res = await axios.post(`${API_URL}/api/menu`, payload);
-      setItems((current) => [...current, res.data]);
+    try {
+      if (editingItem) {
+        const id = editingItem.id || editingItem._id;
+        const res = await api.put(`/api/menu/${id}`, payload);
+        setData((current) =>
+          (current || []).map((entry) => ((entry.id || entry._id) === id ? res.data : entry))
+        );
+      } else {
+        const res = await api.post('/api/menu', payload);
+        setData((current) => [...(current || []), res.data]);
+      }
+      invalidateCache('menu');
+      closeDialog();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Could not save menu item.');
+    } finally {
+      setSaving(false);
     }
-
-    openForm(null);
   };
 
   const deleteItem = async (id) => {
-    await axios.delete(`${API_URL}/api/menu/${id}`);
-    setItems((current) => current.filter((item) => (item.id || item._id) !== id));
+    if (!window.confirm('Delete this menu item?')) return;
+    setDeletingId(id);
+    try {
+      await api.delete(`/api/menu/${id}`);
+      setData((current) => (current || []).filter((entry) => (entry.id || entry._id) !== id));
+      invalidateCache('menu');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Could not delete item.');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const toggleAvailability = async (item) => {
     const id = item.id || item._id;
     const nextAvailable = !(item.isAvailable !== false && item.isOutOfStock !== true);
-    const res = await axios.put(`${API_URL}/api/menu/${id}`, { isAvailable: nextAvailable });
-    setItems((current) => current.map((entry) => ((entry.id || entry._id) === id ? res.data : entry)));
+    try {
+      const res = await api.put(`/api/menu/${id}`, { isAvailable: nextAvailable });
+      setData((current) =>
+        (current || []).map((entry) => ((entry.id || entry._id) === id ? res.data : entry))
+      );
+      invalidateCache('menu');
+    } catch (err) {
+      alert('Could not update availability.');
+    }
   };
-
-  if (loading) {
-    return <div className="d-flex align-items-center justify-content-center h-100 text-gold"><i className="fa-solid fa-spinner fa-spin fs-3"></i></div>;
-  }
 
   return (
     <div>
-      <div className="admin-page-heading">
+      <div className="page-header">
         <div>
-          <p className="text-gold text-uppercase small fw-bold mb-2">Menu Management</p>
-          <h2 className="display-6 fw-bold mb-0">Order online menu items</h2>
+          <p className="eyebrow">Menu</p>
+          <h2 className="page-title">{(items ?? []).length} items</h2>
         </div>
-        <button className="btn btn-gold d-flex align-items-center gap-2" type="button" onClick={() => openForm(null)}>
-          <i className="fa-solid fa-plus"></i> Add Item
+        <button className="btn-primary gap-2" type="button" onClick={openAdd}>
+          <i className="fa-solid fa-plus" /> Add item
         </button>
       </div>
 
-      <div className="row g-4">
-        <div className="col-xl-5">
-          <form className="admin-card p-4 menu-form" onSubmit={saveItem}>
-            <h3 className="h5 fw-bold mb-3">{editingItem ? 'Edit menu item' : 'Add menu item'}</h3>
-            <input className="form-control" required placeholder="Item name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-            <textarea className="form-control" required rows="3" placeholder="Description" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
-            <div className="row g-2">
-              <div className="col-6">
-                <input className="form-control" required type="number" min="0" step="0.01" placeholder="Price" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} />
-              </div>
-              <div className="col-6">
-                <input className="form-control" type="number" min="1" placeholder="Prep minutes" value={form.prepTime} onChange={(event) => setForm({ ...form, prepTime: event.target.value })} />
-              </div>
-            </div>
-            <select className="form-control" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>
-              {CATEGORIES.map((category) => <option key={category}>{category}</option>)}
-            </select>
-            <input className="form-control" placeholder="Image URL" value={form.image} onChange={(event) => setForm({ ...form, image: event.target.value })} />
-            <input className="form-control" type="file" accept="image/*" onChange={handleImageUpload} />
-            {form.image && <img className="menu-form-preview" src={form.image} alt="Menu preview" />}
-            <label>
-              Spicy level
-              <input className="form-range" type="range" min="0" max="3" value={form.spicyLevel} onChange={(event) => setForm({ ...form, spicyLevel: event.target.value })} />
-            </label>
-            <div className="admin-check-grid">
-              <label><input type="checkbox" checked={form.isVegetarian} onChange={(event) => setForm({ ...form, isVegetarian: event.target.checked })} /> Vegetarian</label>
-              <label><input type="checkbox" checked={form.isFeatured} onChange={(event) => setForm({ ...form, isFeatured: event.target.checked })} /> Featured</label>
-              <label><input type="checkbox" checked={form.isAvailable} onChange={(event) => setForm({ ...form, isAvailable: event.target.checked })} /> Available</label>
-            </div>
-            <div className="d-flex gap-2">
-              <button className="btn btn-gold flex-grow-1" type="submit">{editingItem ? 'Save Changes' : 'Create Item'}</button>
-              {editingItem && <button className="btn btn-outline-light" type="button" onClick={() => openForm(null)}>Cancel</button>}
-            </div>
-          </form>
+      {loading && !(items ?? []).length ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <div key={n} className="card h-64 animate-pulse bg-surface" />
+          ))}
         </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {(items ?? []).map((item) => {
+            const id = item.id || item._id;
+            const available = item.isAvailable !== false && item.isOutOfStock !== true;
+            return (
+              <article key={id} className="card overflow-hidden">
+                <div className="relative aspect-[16/10] bg-surface">
+                  {item.image ? (
+                    <img src={item.image} alt={item.name} className="h-full w-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-muted">
+                      <i className="fa-solid fa-image text-3xl" />
+                    </div>
+                  )}
+                  <span
+                    className={`absolute right-2 top-2 rounded-full px-2 py-1 text-xs font-bold ${
+                      available ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {available ? 'Live' : 'Hidden'}
+                  </span>
+                </div>
+                <div className="p-4">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <h3 className="font-bold text-ink">{item.name}</h3>
+                    <span className="shrink-0 font-bold text-gold">${Number(item.price).toFixed(2)}</span>
+                  </div>
+                  <p className="mb-3 line-clamp-2 text-sm text-muted">{item.description}</p>
+                  <div className="mb-4 flex flex-wrap gap-1">
+                    <span className="rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-xs text-gold">
+                      {item.category}
+                    </span>
+                    {item.isVegetarian && (
+                      <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-800">Veg</span>
+                    )}
+                    {Number(item.spicyLevel || 0) > 0 && (
+                      <span className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-800">
+                        Spice {item.spicyLevel}
+                      </span>
+                    )}
+                    {item.isFeatured && (
+                      <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">Featured</span>
+                    )}
+                    <span className="text-xs text-muted">{item.prepTime || 15} min prep</span>
+                  </div>
+                  <div className="flex justify-end gap-1 border-t border-border pt-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleAvailability(item)}
+                      className="btn-secondary px-2 py-1"
+                      title="Toggle availability"
+                    >
+                      <i className={available ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openEdit(item)}
+                      className="btn-secondary px-2 py-1 text-gold"
+                      title="Edit"
+                    >
+                      <i className="fa-solid fa-pen" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteItem(id)}
+                      className="btn-secondary px-2 py-1 text-red-600"
+                      title="Delete"
+                      disabled={deletingId === id}
+                    >
+                      {deletingId === id ? (
+                        <i className="fa-solid fa-spinner fa-spin" />
+                      ) : (
+                        <i className="fa-solid fa-trash" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
 
-        <div className="col-xl-7">
-          <div className="admin-card p-0 overflow-hidden">
-            <table className="table table-dark table-hover mb-0 align-middle">
-              <thead className="text-gold text-uppercase small">
-                <tr>
-                  <th className="px-4 py-3">Item</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Flags</th>
-                  <th className="px-4 py-3 text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => {
-                  const id = item.id || item._id;
-                  const available = item.isAvailable !== false && item.isOutOfStock !== true;
-                  return (
-                    <tr key={id}>
-                      <td className="px-4 py-3">
-                        <div className="d-flex align-items-center gap-3">
-                          {item.image && <img className="menu-row-img" src={item.image} alt={item.name} />}
-                          <div>
-                            <div className="fw-bold">{item.name}</div>
-                            <div className="small text-secondary">{Number(item.price).toFixed(2)} | {item.prepTime || 15} min</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3"><span className="badge border border-gold text-gold">{item.category}</span></td>
-                      <td className="px-4 py-3">
-                        <div className="d-flex flex-wrap gap-2">
-                          {item.isVegetarian && <span className="badge text-bg-success">Vegetarian</span>}
-                          {Number(item.spicyLevel || 0) > 0 && <span className="badge text-bg-danger">Spice {item.spicyLevel}</span>}
-                          {item.isFeatured && <span className="badge text-bg-warning text-dark">Featured</span>}
-                          <span className={`badge ${available ? 'text-bg-success' : 'text-bg-secondary'}`}>{available ? 'Available' : 'Hidden'}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-end">
-                        <div className="d-flex justify-content-end gap-2">
-                          <button type="button" onClick={() => toggleAvailability(item)} className="btn btn-sm btn-outline-light">
-                            <i className={available ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'}></i>
-                          </button>
-                          <button type="button" onClick={() => openForm(item)} className="btn btn-sm btn-outline-warning">
-                            <i className="fa-solid fa-pen"></i>
-                          </button>
-                          <button type="button" onClick={() => deleteItem(id)} className="btn btn-sm btn-outline-danger">
-                            <i className="fa-solid fa-trash"></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+      {!loading && (items ?? []).length === 0 && (
+        <div className="card p-12 text-center text-muted">
+          <p className="mb-4">No menu items yet.</p>
+          <button type="button" className="btn-primary" onClick={openAdd}>
+            Add your first item
+          </button>
         </div>
-      </div>
+      )}
+
+      <MenuItemDialog
+        open={dialogOpen}
+        mode={dialogMode}
+        form={form}
+        setForm={setForm}
+        uploading={uploading}
+        saving={saving}
+        onClose={closeDialog}
+        onSubmit={saveItem}
+        onImageUpload={handleImageUpload}
+      />
     </div>
   );
 };

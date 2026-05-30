@@ -1,237 +1,125 @@
-import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+
+const NAV_BG = 'bg-[#fff9f2]';
+const LOGO_SRC = '/assat/logo/logo%20(3).png';
 
 const Navbar = () => {
-  const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
-  const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
   const location = useLocation();
 
   useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      setIsScrolled(currentScrollY > 40);
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
-      if (location.pathname === "/order-online") {
-        if (isMobileMenuOpen) {
-          setIsVisible(true);
-        } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
-          setIsVisible(false);
-        } else {
-          setIsVisible(true);
-        }
-      } else {
-        setIsVisible(true);
-      }
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollY, location.pathname, isMobileMenuOpen]);
-
-  const isActive = (path) => location.pathname === path;
-
-  const navStyle = {
-    transition: "all 0.35s ease, transform 0.35s ease",
-    background: isScrolled
-      ? "rgba(0,0,0,0.95)"
-      : "rgba(0,0,0,0.35)",
-    backdropFilter: "blur(10px)",
-    padding: isScrolled ? "10px 0" : "18px 0",
-    boxShadow: isScrolled
-      ? "0 4px 20px rgba(0,0,0,0.25)"
-      : "none",
-    transform: isVisible ? "translateY(0)" : "translateY(-100%)",
+  const isActive = (path) => {
+    if (path === '/my-orders') {
+      return location.pathname.startsWith('/order-tracking') || location.pathname === '/my-orders';
+    }
+    return location.pathname === path;
   };
 
-  const navLinkStyle = {
-    color: "#fff",
-    fontWeight: "600",
-    letterSpacing: "1px",
-    textTransform: "uppercase",
-    transition: "0.3s",
-    position: "relative",
-  };
+  const linkClass = (path) =>
+    `relative cursor-pointer px-2 py-2 text-[13px] font-semibold uppercase tracking-[0.12em] transition-colors xl:px-3 ${
+      isActive(path) ? 'text-gold' : 'text-ink/75 hover:text-gold'
+    }`;
 
-  const activeLinkStyle = {
-    color: "#ffc107",
-  };
-
-  const buttonStyle = {
-    borderRadius: "50px",
-    padding: "10px 24px",
-    fontWeight: "700",
-    transition: "0.3s",
-  };
+  const mainLinks = [
+    { to: '/', label: 'Home' },
+    { to: '/menu', label: 'Menu' },
+    { to: '/book-a-table', label: 'Book a Table' },
+    { to: '/chef-hiru', label: 'Chef Hiru' },
+    { to: '/contact', label: 'Contact' },
+    { to: '/my-orders', label: 'My Orders' },
+  ];
 
   return (
-    <nav
-      className="navbar navbar-expand-lg navbar-dark fixed-top "
-      style={navStyle}
-    >
-      <div className="container">
+    <header className={`fixed top-0 z-50 w-full border-b border-[#e8dfd0] ${NAV_BG} shadow-[0_2px_16px_rgba(26,26,26,0.06)]`}>
+      <nav className="mx-auto max-w-7xl px-4">
+        <div className="flex h-[72px] items-center justify-between gap-4">
+          <Link to="/" className="flex shrink-0 cursor-pointer items-center no-underline">
+            <img
+              src={LOGO_SRC}
+              alt="Hiran's Sri Lankan Fusion"
+              className="h-12 w-auto max-w-[140px] object-contain sm:h-14 sm:max-w-[160px]"
+            />
+          </Link>
 
-        {/* Logo */}
-        <Link
-          to="/"
-          className="navbar-brand d-flex align-items-center"
-        >
-          <img
-            src="/assat/logo/logo%20(3).png"
-            alt="Hiran Logo"
-            style={{
-              height: isScrolled ? "58px" : "72px",
-              width: "auto",
-              objectFit: "contain",
-              transition: "0.3s",
-            }}
-          />
-        </Link>
-
-        {/* Mobile Toggle */}
-        <button
-          className="navbar-toggler border-0 shadow-none"
-          type="button"
-          onClick={() =>
-            setIsMobileMenuOpen(!isMobileMenuOpen)
-          }
-        >
-          <span className="navbar-toggler-icon"></span>
-        </button>
-
-        {/* Menu */}
-        <div
-          className={`collapse navbar-collapse ${isMobileMenuOpen ? "show" : ""
-            }`}
-          onClick={() => setIsMobileMenuOpen(false)}
-        >
-          <ul className="navbar-nav mx-auto align-items-lg-center gap-lg-4 text-center">
-
-            <li className="nav-item">
-              <Link
-                to="/"
-                className="nav-link"
-                style={{
-                  ...navLinkStyle,
-                  ...(isActive("/") ? activeLinkStyle : {}),
-                }}
-              >
-                Home
-              </Link>
-            </li>
-
-            <li className="nav-item">
-              <Link
-                to="/menu"
-                className="nav-link"
-                style={{
-                  ...navLinkStyle,
-                  ...(isActive("/menu")
-                    ? activeLinkStyle
-                    : {}),
-                }}
-              >
-                Menu
-              </Link>
-            </li>
-
-
-            <li className="nav-item">
-              <Link
-                to="/book-a-table"
-                className="nav-link"
-                style={{
-                  ...navLinkStyle,
-                  ...(isActive("/book-a-table")
-                    ? activeLinkStyle
-                    : {}),
-                }}
-              >
-                Book a Table
-              </Link>
-            </li>
-
-            <li className="nav-item">
-              <Link
-                to="/chef-hiru"
-                className="nav-link"
-                style={{
-                  ...navLinkStyle,
-                  ...(isActive("/chef-hiru")
-                    ? activeLinkStyle
-                    : {}),
-                }}
-              >
-                Chef Hiru
-              </Link>
-            </li>
-
-            <li className="nav-item">
-              <Link
-                to="/contact"
-                className="nav-link"
-                style={{
-                  ...navLinkStyle,
-                  ...(isActive("/contact")
-                    ? activeLinkStyle
-                    : {}),
-                }}
-              >
-                Contact
-              </Link>
-            </li>
-
-
-
-            {/* Order Now Button */}
-            <li className="nav-item mt-3 mt-lg-0">
-              <Link
-                to="/order-online"
-                className="btn btn-warning text-dark d-inline-flex align-items-center"
-                style={buttonStyle}
-              >
-                <i className="fa-solid fa-bag-shopping me-2"></i>
-                Order Now
-              </Link>
-            </li>
-
-            {/* Cart Icon */}
-            <li className="nav-item mt-2 mt-lg-0">
-              <Link
-                to="/cart"
-                className="nav-link position-relative d-inline-block px-3"
-                title="View cart"
-              >
-                <i className="fa-solid fa-cart-shopping fs-5"></i>
-              </Link>
-            </li>
-
+          <ul className="hidden items-center gap-3 lg:flex xl:gap-5 2xl:gap-7">
+            {mainLinks.map(({ to, label }) => (
+              <li key={to}>
+                <Link to={to} className={linkClass(to)}>
+                  {label}
+                  {isActive(to) && (
+                    <span className="absolute -bottom-0.5 left-0 right-0 mx-auto h-0.5 w-4 rounded-full bg-gold" />
+                  )}
+                </Link>
+              </li>
+            ))}
           </ul>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              to="/cart"
+              className="hidden h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[#e8dfd0] text-ink transition hover:border-gold hover:text-gold sm:flex"
+              title="Cart"
+            >
+              <i className="fa-solid fa-cart-shopping" />
+            </Link>
+            <Link
+              to="/order-online"
+              className="hidden cursor-pointer rounded-full bg-gold px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-gold-bright sm:inline-flex sm:items-center"
+            >
+              <i className="fa-solid fa-bag-shopping me-2 text-xs" />
+              Order Now
+            </Link>
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-[#e8dfd0] text-ink lg:hidden"
+              aria-label="Toggle menu"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars'}`} />
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Mobile Menu Background */}
-      <style>
-        {`
-          @media (max-width: 991px) {
-            .navbar-collapse {
-              background: rgba(0,0,0,0.96);
-              margin-top: 15px;
-              padding: 24px;
-              border-radius: 18px;
-            }
-
-            .navbar-nav {
-              gap: 16px;
-            }
-          }
-        `}
-      </style>
-    </nav>
+        {isMobileMenuOpen && (
+          <div className="border-t border-[#e8dfd0] py-4 lg:hidden">
+            <ul className="flex flex-col gap-1">
+              {mainLinks.map(({ to, label }) => (
+                <li key={to}>
+                  <Link
+                    to={to}
+                    className={`block cursor-pointer rounded-lg px-4 py-3 text-sm font-semibold uppercase tracking-wide ${
+                      isActive(to) ? 'bg-gold/10 text-gold' : 'text-ink hover:bg-white'
+                    }`}
+                  >
+                    {label}
+                  </Link>
+                </li>
+              ))}
+              <li className="mt-3 grid grid-cols-2 gap-2 px-2">
+                <Link
+                  to="/cart"
+                  className="flex cursor-pointer items-center justify-center gap-2 rounded-full border border-[#e8dfd0] py-3 text-sm font-semibold text-ink"
+                >
+                  <i className="fa-solid fa-cart-shopping" />
+                  Cart
+                </Link>
+                <Link
+                  to="/order-online"
+                  className="flex cursor-pointer items-center justify-center gap-2 rounded-full bg-gold py-3 text-sm font-bold text-white"
+                >
+                  <i className="fa-solid fa-bag-shopping" />
+                  Order Now
+                </Link>
+              </li>
+            </ul>
+          </div>
+        )}
+      </nav>
+    </header>
   );
 };
 

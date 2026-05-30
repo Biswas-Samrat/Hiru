@@ -4,9 +4,15 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const { connectDB } = require('./config/db');
+const { ensureDefaultAdmin } = require('./utils/ensureAdmin');
 
 dotenv.config();
-connectDB();
+
+const startServer = async () => {
+  await connectDB();
+  await ensureDefaultAdmin();
+};
+startServer();
 
 const app = express();
 const server = http.createServer(app);
@@ -21,6 +27,8 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/upload', require('./routes/uploadRoutes'));
 app.use('/api/menu', require('./routes/menuRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes')(io));
 app.use('/api/reservations', require('./routes/reservationRoutes')(io));

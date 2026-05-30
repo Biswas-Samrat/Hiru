@@ -1,9 +1,35 @@
 const MenuItem = require('../models/MenuItem');
 
+const listImage = (image) => {
+  if (!image) return '';
+  const value = String(image);
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+  return '';
+};
+
 exports.getMenuItems = async (req, res) => {
   try {
-    const items = await MenuItem.find().sort({ category: 1, name: 1 });
-    res.json(items);
+    const items = await MenuItem.find()
+      .sort({ category: 1, name: 1 })
+      .select('name description price category image isVegetarian isSpicy spicyLevel isFeatured isAvailable isOutOfStock prepTime createdAt updatedAt')
+      .lean();
+
+    const payload = items.map((item) => ({
+      ...item,
+      id: item._id,
+      image: listImage(item.image),
+    }));
+    res.json(payload);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getMenuItemById = async (req, res) => {
+  try {
+    const item = await MenuItem.findById(req.params.id).lean();
+    if (!item) return res.status(404).json({ message: 'Item not found' });
+    res.json({ ...item, id: item._id });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

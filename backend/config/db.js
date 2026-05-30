@@ -7,7 +7,10 @@ const connectDB = async () => {
   const maxRetries = 5;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await mongoose.connect(process.env.MONGO_URI);
+      await mongoose.connect(process.env.MONGO_URI, {
+        serverSelectionTimeoutMS: 8000,
+        maxPoolSize: 10,
+      });
       console.log('MongoDB Connected...');
       return;
     } catch (error) {
@@ -18,7 +21,7 @@ const connectDB = async () => {
         return;
       }
       // Wait 5 seconds before retrying
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
   }
 };

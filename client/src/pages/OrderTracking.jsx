@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import io from 'socket.io-client';
 import axios from 'axios';
+import { saveTrackedOrder } from './OrderTrackingHub';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const socket = io(API_URL);
@@ -15,15 +16,14 @@ const OrderTracking = () => {
     const fetchOrder = async () => {
       if (id.startsWith('local-')) {
         const localOrder = localStorage.getItem(`hirans-order-${id}`);
-        if (localOrder) {
-          setOrder(JSON.parse(localOrder));
-        }
+        if (localOrder) setOrder(JSON.parse(localOrder));
         return;
       }
 
       try {
         const res = await axios.get(`${API_URL}/api/orders/${id}`);
         setOrder(res.data);
+        saveTrackedOrder(res.data);
       } catch (err) {
         console.error(err);
       }
@@ -36,17 +36,14 @@ const OrderTracking = () => {
 
     socket.on('orderUpdate', (updatedOrder) => {
       setOrder(updatedOrder);
+      saveTrackedOrder(updatedOrder);
     });
 
-    return () => {
-      socket.off('orderUpdate');
-    };
+    return () => socket.off('orderUpdate');
   }, [id]);
 
   useEffect(() => {
-    if (!order || !order.estimatedReadyTime || order.status === 'Ready for Pickup') {
-      return;
-    }
+    if (!order || !order.estimatedReadyTime || order.status === 'Ready for Pickup') return;
 
     const timer = setInterval(() => {
       const now = new Date().getTime();
@@ -66,52 +63,70 @@ const OrderTracking = () => {
     return () => clearInterval(timer);
   }, [order]);
 
-  if (!order) return <div className="vh-100 d-flex align-items-center justify-content-center section-dark text-gold">Loading...</div>;
+  if (!order) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-cream pt-28 text-gold">
+        <i className="fa-solid fa-spinner fa-spin text-3xl" />
+      </div>
+    );
+  }
 
   const steps = [
     { name: 'Pending', icon: 'fa-regular fa-clock' },
     { name: 'Preparing', icon: 'fa-solid fa-utensils' },
     { name: 'Almost Ready', icon: 'fa-solid fa-fire' },
-    { name: 'Ready for Pickup', icon: 'fa-solid fa-box' }
+    { name: 'Ready for Pickup', icon: 'fa-solid fa-box' },
   ];
 
-  const currentStepIndex = Math.max(0, steps.findIndex(s => s.name === order.status));
+  const currentStepIndex = Math.max(0, steps.findIndex((s) => s.name === order.status));
   const orderItems = Array.isArray(order.items) ? order.items : [];
+  const progressWidth = (currentStepIndex / (steps.length - 1)) * 100;
 
   return (
-    <div className="min-vh-100 pt-5 pb-5 section-dark px-3">
-      <div className="container" style={{ maxWidth: '960px' }}>
-        <div className="text-center mb-5 mt-4">
-          <h2 className="text-gold text-uppercase mb-2 small">Order Status</h2>
-          <h1 className="display-5 fw-bold">Track Your Feast</h1>
+    <div className="min-h-screen bg-cream px-3 pb-12 pt-28">
+      <div className="mx-auto max-w-3xl px-4">
+        <div className="mb-8 text-center">
+          <Link to="/my-orders" className="mb-4 inline-block text-sm text-gold hover:underline">
+            ← My orders
+          </Link>
+          <h2 className="mb-2 font-royal text-xs font-bold uppercase tracking-widest text-gold">Order status</h2>
+          <h1 className="text-3xl font-bold text-ink md:text-4xl">Track your order</h1>
         </div>
 
-        <div className="glass p-4 p-md-5 text-center mb-5">
-          <h3 className="text-secondary text-uppercase small mb-3 fw-bold">Estimated Preparation Time</h3>
-          <div className="display-1 fw-bold text-gold mb-3" style={{ fontVariantNumeric: 'tabular-nums' }}>
+        <div className="card-light mb-8 p-8 text-center">
+          <h3 className="mb-3 text-xs font-bold uppercase text-muted">Estimated preparation time</h3>
+          <div className="mb-3 text-5xl font-bold tabular-nums text-gold md:text-6xl">
             {timeLeft !== null ? timeLeft : '--:--'}
           </div>
-          <p className="text-secondary mb-0 fst-italic">
-            {order.status === 'Ready for Pickup' ? 'Your food is ready for collection!' : 'Your food will be ready soon'}
+          <p className="text-muted">
+            {order.status === 'Ready for Pickup'
+              ? 'Your food is ready for collection!'
+              : 'Your food will be ready soon'}
           </p>
+          <span className="mt-4 inline-block rounded-full bg-gold/10 px-4 py-1 text-sm font-bold text-gold">
+            {order.status}
+          </span>
         </div>
 
-        <div className="position-relative mb-5 px-2 px-md-4">
-          <div className="position-absolute top-50 start-0 w-100 border-top border-secondary"></div>
-          <div 
-            className="position-absolute top-50 start-0 border-top border-warning"
-            style={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
-          ></div>
-          
-          <div className="position-relative d-flex justify-content-between">
+        <div className="relative mb-10 px-2 md:px-4">
+          <div className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-gray-200" />
+          <div
+            className="absolute left-0 top-1/2 h-px -translate-y-1/2 bg-gold transition-all duration-500"
+            style={{ width: `${progressWidth}%` }}
+          />
+          <div className="relative flex justify-between">
             {steps.map((step, idx) => (
-              <div key={idx} className="d-flex flex-column align-items-center">
-                <div className={`rounded-circle d-flex align-items-center justify-content-center position-relative ${
-                  idx <= currentStepIndex ? 'bg-gold text-dark border border-dark' : 'bg-dark border border-secondary text-secondary'
-                }`}>
-                  <i className={step.icon} style={{ width: '44px', height: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}></i>
+              <div key={idx} className="flex flex-col items-center">
+                <div
+                  className={`flex h-11 w-11 items-center justify-center rounded-full ${
+                    idx <= currentStepIndex
+                      ? 'bg-gold text-white'
+                      : 'border border-gray-200 bg-white text-muted'
+                  }`}
+                >
+                  <i className={step.icon} />
                 </div>
-                <span className={`mt-2 small fw-bold text-uppercase ${idx <= currentStepIndex ? 'text-gold' : 'text-secondary'}`}>
+                <span className={`mt-2 text-[10px] font-bold uppercase sm:text-xs ${idx <= currentStepIndex ? 'text-gold' : 'text-muted'}`}>
                   {step.name}
                 </span>
               </div>
@@ -119,32 +134,31 @@ const OrderTracking = () => {
           </div>
         </div>
 
-        <div className="glass p-4">
-          <h4 className="h4 fw-bold mb-3 border-bottom border-gold pb-2">Order Details</h4>
-          <div className="d-grid gap-3">
+        <div className="card-light p-6">
+          <h4 className="mb-4 border-b border-gray-200 pb-2 text-xl font-bold text-ink">Order details</h4>
+          <div className="space-y-3">
             {orderItems.map((item, idx) => (
-              <div key={idx} className="d-flex justify-content-between align-items-center">
+              <div key={idx} className="flex items-center justify-between gap-4 text-sm">
                 <div>
-                  <span className="fw-bold text-gold">{item.quantity}x</span> {item.itemName || item.menuItem?.name || 'Menu item'}
+                  <span className="font-bold text-gold">{item.quantity}x</span>{' '}
+                  {item.itemName || item.menuItem?.name || 'Menu item'}
                   {(item.spiceLevel || item.curryBase || item.extras?.length > 0) && (
-                    <span className="ms-2 small text-secondary fst-italic">
-                      {[item.curryBase, item.spiceLevel, ...(item.extras || []).map((extra) => extra.name)].filter(Boolean).join(', ')}
+                    <span className="ms-2 text-muted">
+                      {[item.curryBase, item.spiceLevel, ...(item.extras || []).map((extra) => extra.name)]
+                        .filter(Boolean)
+                        .join(', ')}
                     </span>
                   )}
                 </div>
-                <span className="text-secondary">${Number(item.lineTotal || item.menuItem?.price * item.quantity || 0).toFixed(2)}</span>
+                <span className="shrink-0 text-muted">
+                  ${Number(item.lineTotal || item.menuItem?.price * item.quantity || 0).toFixed(2)}
+                </span>
               </div>
             ))}
-            <div className="pt-3 mt-2 border-top border-gold d-flex justify-content-between fw-bold fs-5">
+            <div className="mt-2 flex justify-between border-t border-gray-200 pt-3 text-lg font-bold">
               <span>Total</span>
               <span className="text-gold">${Number(order.totalAmount || 0).toFixed(2)}</span>
             </div>
-            {order.customerInfo?.paymentMethod && (
-              <div className="pt-2 d-flex justify-content-between small text-secondary">
-                <span>Payment</span>
-                <span>{order.customerInfo.paymentMethod === 'online' ? 'Paid online' : 'Cash on pickup'}</span>
-              </div>
-            )}
           </div>
         </div>
       </div>

@@ -15,10 +15,14 @@ import {
   subMonths,
 } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
+import SorryDialog from '../components/SorryDialog';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const nzTimeZone = 'Pacific/Auckland';
 const MAX_TABLES_PER_SLOT = 4;
+
+const inputLight =
+  'w-full min-h-12 rounded-lg border border-gray-200 bg-surface px-3 text-ink placeholder:text-muted focus:border-gold focus:outline-none';
 
 const BookTablePage = () => {
   const [step, setStep] = useState(1);
@@ -29,6 +33,7 @@ const BookTablePage = () => {
   const [bookings, setBookings] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [bookingEnabled, setBookingEnabled] = useState(true);
+  const [showSorryDialog, setShowSorryDialog] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -69,7 +74,7 @@ const BookTablePage = () => {
     event.preventDefault();
 
     if (!bookingEnabled) {
-      toast.error('Online table booking is currently switched off.');
+      setShowSorryDialog(true);
       return;
     }
 
@@ -100,28 +105,32 @@ const BookTablePage = () => {
       setGuests(2);
       setFormData({ name: '', phone: '', email: '', requests: '' });
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Could not book that table. Please try another time.');
+      if (error.response?.status === 403) {
+        setShowSorryDialog(true);
+      } else {
+        toast.error(error.response?.data?.message || 'Could not book that table. Please try another time.');
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
   const renderHeader = () => (
-    <div className="d-flex justify-content-between align-items-center mb-3">
-      <button className="btn btn-link text-gold p-0" type="button" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+    <div className="mb-3 flex items-center justify-between">
+      <button className="p-0 text-gold hover:text-gold-bright" type="button" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
         <i className="fa-solid fa-chevron-left" />
       </button>
-      <h2 className="h6 mb-0 fw-bold text-white text-uppercase">{format(currentMonth, 'MMMM yyyy')}</h2>
-      <button className="btn btn-link text-gold p-0" type="button" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+      <h2 className="mb-0 text-sm font-bold uppercase text-ink">{format(currentMonth, 'MMMM yyyy')}</h2>
+      <button className="p-0 text-gold hover:text-gold-bright" type="button" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
         <i className="fa-solid fa-chevron-right" />
       </button>
     </div>
   );
 
   const renderDays = () => (
-    <div className="row text-center mb-2 g-0">
+    <div className="mb-2 grid grid-cols-7 text-center">
       {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
-        <div key={`${day}-${index}`} className="col fw-bold extra-small text-gold opacity-75">{day}</div>
+        <div key={`${day}-${index}`} className="text-[10px] font-bold uppercase text-gold/75">{day}</div>
       ))}
     </div>
   );
@@ -145,26 +154,45 @@ const BookTablePage = () => {
         days.push(
           <div
             key={day.toISOString()}
-            className={`col p-1 text-center calendar-day ${!inMonth ? 'opacity-10' : ''} ${isPast ? 'text-danger opacity-25 pe-none' : 'cursor-pointer'} ${isSelected ? 'selected-day' : ''}`}
+            className={`p-1 text-center ${!inMonth ? 'opacity-10' : ''} ${
+              isPast ? 'pointer-events-none text-red-400/50 opacity-25' : 'cursor-pointer'
+            }`}
             onClick={() => !isPast && inMonth && selectDate(cloneDay)}
           >
-            <div className={`day-number ${isSelected ? 'bg-gold text-dark' : 'bg-soft-dark text-white'} rounded p-2`}>
+            <div
+              className={`rounded p-2 ${
+                isSelected ? 'bg-gold font-bold text-white' : 'bg-surface text-ink hover:bg-gold/10'
+              }`}
+            >
               {format(day, 'd')}
             </div>
           </div>
         );
         day = addDays(day, 1);
       }
-      rows.push(<div className="row g-1" key={day.toISOString()}>{days}</div>);
+      rows.push(
+        <div className="mb-1 grid grid-cols-7 gap-0" key={day.toISOString()}>
+          {days}
+        </div>
+      );
       days = [];
     }
     return <div>{rows}</div>;
   };
 
   const renderProgressHeader = () => (
-    <div className="d-flex justify-content-center gap-2 mb-4 overflow-auto pb-2">
+    <div className="mb-4 flex justify-center gap-2 overflow-auto pb-2">
       {['Date', 'Time', 'People', 'Final'].map((name, index) => (
-        <span key={name} className={`reservation-step ${step === index + 1 ? 'active' : step > index + 1 ? 'done' : ''}`}>
+        <span
+          key={name}
+          className={`whitespace-nowrap rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-wide ${
+            step === index + 1
+              ? 'border-gold bg-gold text-[#0b0b0b]'
+              : step > index + 1
+                ? 'border-gold/50 bg-gold/20 text-gold'
+                : 'border-gray-200 text-muted'
+          }`}
+        >
           {name}
         </span>
       ))}
@@ -174,7 +202,11 @@ const BookTablePage = () => {
   const renderTimeButton = (time) => (
     <button
       type="button"
-      className={`btn btn-sm py-2 rounded-pill w-100 ${selectedTime === time ? 'btn-warning text-dark shadow-sm' : 'btn-outline-secondary text-light border-secondary border-opacity-25'}`}
+      className={`w-full rounded-full px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+        selectedTime === time
+          ? 'bg-amber-400 text-black shadow-sm'
+          : 'border border-gray-200 text-ink hover:border-gold/50'
+      }`}
       disabled={isSlotFull(time)}
       onClick={() => setSelectedTime(time)}
     >
@@ -183,38 +215,43 @@ const BookTablePage = () => {
   );
 
   return (
-    <div className="section-dark reservation-page">
-      <div className="container">
-        <div className="row g-5 align-items-center">
-          <div className="col-lg-6">
-            <p className="eyebrow">Reservations</p>
-            <h1>Book one of the few dine-in tables.</h1>
-            <p className="lead text-white-50">
+    <div className="bg-cream pb-24 pt-28">
+      <SorryDialog
+        open={showSorryDialog}
+        onClose={() => setShowSorryDialog(false)}
+        title="Sorry — no tables available to book online"
+        message="We are not accepting online table bookings at the moment. Please call us on 07 281 7206 to check walk-in availability."
+      />
+      <div className="mx-auto max-w-7xl px-4">
+        <div className="grid items-start gap-12 lg:grid-cols-2">
+          <div>
+            <p className="mb-3 font-royal text-xs font-bold uppercase tracking-widest text-gold">Reservations</p>
+            <h1 className="mb-4 text-3xl font-bold text-ink md:text-4xl">Book one of the few dine-in tables</h1>
+            <p className="mb-6 text-lg text-muted">
               Real-time slot limits help prevent overbooking. Confirmation data is captured for the customer and restaurant team.
             </p>
-            {!bookingEnabled && (
-              <div className="service-disabled mt-4">
-                <i className="fa-solid fa-circle-pause" />
-                Online table booking is currently switched off by the restaurant.
-              </div>
-            )}
-            <div className="reservation-info">
-              <span><i className="fa-solid fa-location-dot" /> 113 Tongariro Street, Taupo</span>
-              <span><i className="fa-solid fa-phone" /> 07 281 7206</span>
-              <span><i className="fa-solid fa-users" /> {MAX_TABLES_PER_SLOT} table bookings per time slot</span>
+            <div className="flex flex-col gap-3 text-sm text-muted">
+              <span><i className="fa-solid fa-location-dot me-2 text-gold" /> 113 Tongariro Street, Taupo</span>
+              <span><i className="fa-solid fa-phone me-2 text-gold" /> 07 281 7206</span>
+              <span><i className="fa-solid fa-users me-2 text-gold" /> {MAX_TABLES_PER_SLOT} table bookings per time slot</span>
             </div>
           </div>
 
-          <div className="col-lg-6">
+          <div>
             {renderProgressHeader()}
-            <div className="booking-card">
+            <div className="card-light p-6">
               {step === 1 && (
                 <>
-                  <h2>Select Date</h2>
+                  <h2 className="mb-4 text-xl font-bold text-ink">Select date</h2>
                   {renderHeader()}
                   {renderDays()}
                   {renderCells()}
-                  <button type="button" className="btn btn-warning text-dark fw-bold w-100 py-3 mt-4" disabled={!selectedDate || !bookingEnabled} onClick={() => setStep(2)}>
+                  <button
+                    type="button"
+                    className="mt-4 w-full rounded-full bg-amber-400 py-3 font-bold text-black hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!selectedDate}
+                    onClick={() => setStep(2)}
+                  >
                     Next
                   </button>
                 </>
@@ -222,61 +259,150 @@ const BookTablePage = () => {
 
               {step === 2 && (
                 <>
-                  <h2>Select Time</h2>
-                  <p className="small text-secondary">Showing live capacity for {selectedDate ? format(selectedDate, 'EEEE, MMMM d') : 'your selected date'}.</p>
-                  <h3>Lunch</h3>
-                  <div className="time-grid">{lunchTimes.map((time) => <span key={time}>{renderTimeButton(time)}</span>)}</div>
-                  <h3 className="mt-4">Dinner</h3>
-                  <div className="time-grid">{dinnerTimes.map((time) => <span key={time}>{renderTimeButton(time)}</span>)}</div>
-                  <div className="d-flex gap-3 mt-4">
-                    <button type="button" className="btn btn-outline-light w-100 py-3" onClick={() => setStep(1)}>Back</button>
-                    <button type="button" className="btn btn-warning text-dark fw-bold w-100 py-3" disabled={!selectedTime} onClick={() => setStep(3)}>Next</button>
+                  <h2 className="mb-2 text-xl font-bold text-ink">Select time</h2>
+                  <p className="mb-4 text-sm text-muted">
+                    Showing live capacity for {selectedDate ? format(selectedDate, 'EEEE, MMMM d') : 'your selected date'}.
+                  </p>
+                  <h3 className="mb-2 font-semibold text-gold">Lunch</h3>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {lunchTimes.map((time) => (
+                      <span key={time}>{renderTimeButton(time)}</span>
+                    ))}
+                  </div>
+                  <h3 className="mb-2 mt-4 font-semibold text-gold">Dinner</h3>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {dinnerTimes.map((time) => (
+                      <span key={time}>{renderTimeButton(time)}</span>
+                    ))}
+                  </div>
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      type="button"
+                      className="btn-outline w-full py-3"
+                      onClick={() => setStep(1)}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full rounded-full bg-amber-400 py-3 font-bold text-black hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={!selectedTime}
+                      onClick={() => setStep(3)}
+                    >
+                      Next
+                    </button>
                   </div>
                 </>
               )}
 
               {step === 3 && (
                 <>
-                  <h2>Number of People</h2>
-                  <div className="guest-grid">
+                  <h2 className="mb-4 text-xl font-bold text-ink">Number of people</h2>
+                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((number) => (
-                      <button key={number} type="button" className={guests === number ? 'active' : ''} onClick={() => setGuests(number)}>
+                      <button
+                        key={number}
+                        type="button"
+                        className={`rounded-lg border py-3 font-bold transition-colors ${
+                          guests === number
+                            ? 'border-gold bg-gold text-white'
+                            : 'border-gray-200 text-ink hover:border-gold/50'
+                        }`}
+                        onClick={() => setGuests(number)}
+                      >
                         {number}
                       </button>
                     ))}
                   </div>
-                  <div className="d-flex gap-3 mt-4">
-                    <button type="button" className="btn btn-outline-light w-100 py-3" onClick={() => setStep(2)}>Back</button>
-                    <button type="button" className="btn btn-warning text-dark fw-bold w-100 py-3" onClick={() => setStep(4)}>Next</button>
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      type="button"
+                      className="btn-outline w-full py-3"
+                      onClick={() => setStep(2)}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full rounded-full bg-amber-400 py-3 font-bold text-black hover:bg-amber-300"
+                      onClick={() => setStep(4)}
+                    >
+                      Next
+                    </button>
                   </div>
                 </>
               )}
 
               {step === 4 && (
                 <>
-                  <h2>Complete Reservation</h2>
-                  <div className="summary-box">
-                    <span>Date <b>{format(selectedDate, 'EEEE, MMMM d')}</b></span>
-                    <span>Time <b>{selectedTime}</b></span>
-                    <span>Guests <b>{guests}</b></span>
+                  <h2 className="mb-4 text-xl font-bold text-ink">Complete reservation</h2>
+                  <div className="mb-4 space-y-2 rounded-lg border border-gray-200 bg-surface p-4 text-sm">
+                    <div className="flex justify-between text-muted">
+                      <span>Date</span>
+                      <b className="text-ink">{format(selectedDate, 'EEEE, MMMM d')}</b>
+                    </div>
+                    <div className="flex justify-between text-muted">
+                      <span>Time</span>
+                      <b className="text-ink">{selectedTime}</b>
+                    </div>
+                    <div className="flex justify-between text-muted">
+                      <span>Guests</span>
+                      <b className="text-ink">{guests}</b>
+                    </div>
                   </div>
-                  <form className="row g-3" onSubmit={submitReservation}>
-                    <div className="col-12">
-                      <input className="form-control" required placeholder="Your name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+                  <form className="space-y-3" onSubmit={submitReservation}>
+                    <input
+                      className={inputLight}
+                      required
+                      placeholder="Your name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <input
+                        className={inputLight}
+                        required
+                        placeholder="Phone"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      />
+                      <input
+                        className={inputLight}
+                        required
+                        type="email"
+                        placeholder="Email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      />
                     </div>
-                    <div className="col-md-6">
-                      <input className="form-control" required placeholder="Phone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
-                    </div>
-                    <div className="col-md-6">
-                      <input className="form-control" required type="email" placeholder="Email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-                    </div>
-                    <div className="col-12">
-                      <textarea className="form-control" rows="2" placeholder="Requests or dietary notes" value={formData.requests} onChange={(e) => setFormData({ ...formData, requests: e.target.value })} />
-                    </div>
-                    <div className="col-12 d-flex gap-3">
-                      <button type="button" className="btn btn-outline-light w-100 py-3" onClick={() => setStep(3)}>Back</button>
-                      <button type="submit" className="btn btn-warning text-dark fw-bold w-100 py-3" disabled={submitting || !bookingEnabled}>
-                        {submitting ? 'Booking...' : 'Confirm'}
+                    <textarea
+                      className={`${inputLight} min-h-[5rem] resize-y`}
+                      rows="2"
+                      placeholder="Requests or dietary notes"
+                      value={formData.requests}
+                      onChange={(e) => setFormData({ ...formData, requests: e.target.value })}
+                    />
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        type="button"
+                        className="btn-outline w-full py-3"
+                        onClick={() => setStep(3)}
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="submit"
+                        className="w-full rounded-full bg-amber-400 py-3 font-bold text-black hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={submitting}
+                      >
+                        {submitting ? (
+                          <>
+                            <i className="fa-solid fa-spinner fa-spin me-2" />
+                            Booking...
+                          </>
+                        ) : (
+                          'Confirm'
+                        )}
                       </button>
                     </div>
                   </form>

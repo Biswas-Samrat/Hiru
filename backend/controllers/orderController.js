@@ -14,7 +14,41 @@ const calculateReadyTime = (items) => {
 
 exports.getOrders = async (req, res) => {
   try {
-    const orders = await Order.find().sort({ createdAt: -1 });
+    const limit = Math.min(Number(req.query.limit) || 120, 300);
+    const orders = await Order.find()
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+    res.json(orders.map((o) => ({ ...o, id: o._id })));
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const ACTIVE_STATUSES = ['Pending', 'Accepted', 'Preparing', 'Almost Ready', 'Ready for Pickup'];
+
+exports.findActiveOrders = async (req, res) => {
+  try {
+    const { email, phone, orderId } = req.query;
+
+    if (orderId) {
+      const order = await Order.findById(orderId);
+      if (!order) return res.status(404).json({ message: 'Order not found.' });
+      return res.json([order]);
+    }
+
+    if (!email && !phone) {
+      return res.status(400).json({ message: 'Provide an order ID, email, or phone number.' });
+    }
+
+    const query = { status: { $in: ACTIVE_STATUSES } };
+    if (email) query['customerInfo.email'] = new RegExp(`^${email.trim()}$`, 'i');
+    if (phone) {
+      const digits = phone.replace(/\D/g, '');
+      query['customerInfo.phone'] = new RegExp(digits.slice(-8));
+    }
+
+    const orders = await Order.find(query).sort({ createdAt: -1 }).limit(10);
     res.json(orders);
   } catch (error) {
     res.status(500).json({ message: error.message });
