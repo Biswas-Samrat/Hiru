@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 const MenuPage = () => (
   <div className="bg-cream pb-24 pt-28">
     <div className="mx-auto max-w-6xl px-6 sm:px-10 md:px-16 lg:px-20 xl:px-24">
@@ -16,6 +18,17 @@ const MenuPage = () => (
           alt="Hiran's menu page 2"
           className="w-full rounded-2xl border border-gray-200 shadow-soft"
         />
+      </div>
+      
+      <div className="mt-12 flex flex-wrap justify-center gap-4">
+        <Link to="/book-a-table" className="btn-primary cursor-pointer min-w-[160px] text-center">
+          <i className="fa-solid fa-calendar-days me-2" />
+          Book a table
+        </Link>
+        <Link to="/order-online" className="btn-outline cursor-pointer min-w-[160px] text-center bg-white">
+          <i className="fa-solid fa-bag-shopping me-2" />
+          Order now
+        </Link>
       </div>
     </div>
   </div>

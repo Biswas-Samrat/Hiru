@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const MenuItem = require('../models/MenuItem');
 const { getOrCreateSettings } = require('./settingsController');
+const { archiveOrder } = require('./orderHistoryController');
 
 // Core Logic: Live Preparation Timer
 const calculateReadyTime = (items) => {
@@ -142,6 +143,11 @@ exports.updateOrderStatus = async (req, res, io) => {
     }
     
     await order.save();
+
+    // Auto-archive when order is collected (Completed)
+    if (status === 'Completed') {
+      await archiveOrder(order);
+    }
     
     // Notify client via socket room
     io.to(order._id.toString()).emit('orderUpdate', order);

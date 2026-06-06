@@ -33,7 +33,9 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/upload', require('./routes/uploadRoutes'));
 app.use('/api/menu', require('./routes/menuRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes')(io));
+app.use('/api/order-history', require('./routes/orderHistoryRoutes'));
 app.use('/api/reservations', require('./routes/reservationRoutes')(io));
+app.use('/api/reservation-history', require('./routes/reservationHistoryRoutes'));
 app.use('/api/settings', require('./routes/settingsRoutes')(io));
 app.use('/api/gallery', require('./routes/galleryRoutes'));
 

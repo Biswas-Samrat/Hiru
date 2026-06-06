@@ -8,6 +8,8 @@ import MenuManagement from './pages/MenuManagement';
 import GalleryManagement from './pages/GalleryManagement';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
+import OrderHistory from './pages/OrderHistory';
+import ReservationHistory from './pages/ReservationHistory';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -34,7 +36,9 @@ const Sidebar = ({ mobileOpen, onClose }) => {
   const menuItems = [
     { name: 'Dashboard', icon: 'fa-solid fa-gauge-high', path: '/' },
     { name: 'Orders', icon: 'fa-solid fa-cart-shopping', path: '/orders' },
+    { name: 'Order History', icon: 'fa-solid fa-box-archive', path: '/order-history' },
     { name: 'Reservations', icon: 'fa-solid fa-calendar-days', path: '/reservations' },
+    { name: 'Reserv. History', icon: 'fa-solid fa-clock-rotate-left', path: '/reservation-history' },
     { name: 'Menu', icon: 'fa-solid fa-utensils', path: '/menu' },
     { name: 'Gallery', icon: 'fa-solid fa-images', path: '/gallery' },
     { name: 'Settings', icon: 'fa-solid fa-gear', path: '/settings' },
@@ -120,7 +124,9 @@ const AdminLayout = () => {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/orders" element={<Orders />} />
+            <Route path="/order-history" element={<OrderHistory />} />
             <Route path="/reservations" element={<Reservations />} />
+            <Route path="/reservation-history" element={<ReservationHistory />} />
             <Route path="/menu" element={<MenuManagement />} />
             <Route path="/gallery" element={<GalleryManagement />} />
             <Route path="/settings" element={<Settings />} />

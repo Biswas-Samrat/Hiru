@@ -44,7 +44,7 @@ const layoutSpan = (layout) => {
 };
 
 const HomeGallery = () => {
-  const [photos, setPhotos] = useState(FALLBACK_GALLERY);
+  const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -93,7 +93,7 @@ const HomeGallery = () => {
           {photos.map((item, index) => (
             <div
               key={item.id || `${item.caption}-${index}`}
-              className={`group relative overflow-hidden rounded-xl bg-[#ebe9e4] ${layoutSpan(item.layout)}`}
+              className={`group relative overflow-hidden rounded-xl bg-[#ebe9e4] skeleton-item ${layoutSpan(item.layout)}`}
             >
               <img
                 src={item.image}

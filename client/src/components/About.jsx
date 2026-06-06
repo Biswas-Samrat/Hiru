@@ -1,16 +1,12 @@
 import { motion } from 'framer-motion';
-
-const videos = [
-  'https://assets.mixkit.co/videos/preview/mixkit-chef-preparing-a-meal-4339-large.mp4',
-  'https://assets.mixkit.co/videos/preview/mixkit-close-up-of-a-person-pouring-spices-4341-large.mp4',
-  'https://assets.mixkit.co/videos/preview/mixkit-chef-decorating-a-plate-4342-large.mp4',
-];
+import { Link } from 'react-router-dom';
 
 const About = () => {
   return (
-    <section id="about" className="bg-white py-24">
+    <section id="about" className="bg-white pt-6 pb-24">
       <div className="mx-auto max-w-7xl px-4">
         <div className="grid items-center gap-12 lg:grid-cols-2">
+          {/* Left Div: Text & Badges & Buttons */}
           <motion.div
             initial={{ opacity: 0, x: -24 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -34,27 +30,39 @@ const About = () => {
               <span className="rounded-full border border-gold/30 bg-gold/10 px-4 py-2 text-sm text-gold">The Local Diner</span>
               <span className="rounded-full border border-gold/30 bg-gold/10 px-4 py-2 text-sm text-gold">Spicy Touch by Chef Hiru</span>
             </div>
+
+            <div className="mt-10 flex flex-wrap gap-4">
+              <Link to="/book-a-table" className="btn-primary cursor-pointer min-w-[160px] text-center">
+                <i className="fa-solid fa-calendar-days me-2" />
+                Book a table
+              </Link>
+              <Link to="/order-online" className="btn-outline cursor-pointer min-w-[160px] text-center bg-white border border-[#d8d6d0]">
+                <i className="fa-solid fa-bag-shopping me-2" />
+                Order now
+              </Link>
+            </div>
           </motion.div>
 
+          {/* Right Div: Photo & Background Shapes */}
           <motion.div
+            className="relative flex items-center justify-center lg:pl-10 w-full max-w-[340px] mx-auto"
             initial={{ opacity: 0, x: 24 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
           >
-            <div className="grid grid-cols-2 gap-3">
-              <video autoPlay muted loop playsInline className="col-span-2 h-48 w-full rounded-lg object-cover">
-                <source src={videos[0]} type="video/mp4" />
-              </video>
-              <video autoPlay muted loop playsInline className="h-36 w-full rounded-lg object-cover">
-                <source src={videos[1]} type="video/mp4" />
-              </video>
-              <video autoPlay muted loop playsInline className="h-36 w-full rounded-lg object-cover">
-                <source src={videos[2]} type="video/mp4" />
-              </video>
-              <div className="col-span-2 rounded-2xl border border-gray-200 bg-surface p-6 shadow-soft">
-                <span className="mb-2 block font-royal text-xs font-bold uppercase tracking-widest text-gold">Chef in action</span>
-                <strong className="text-lg text-ink">Kottu is food, rhythm, heat, and theatre all at once.</strong>
-              </div>
+            {/* Background shapes */}
+            <div className="absolute -left-2 -top-2 -right-6 -bottom-6 bg-gradient-to-tr from-gold/20 via-gold/10 to-brand-orange/5 rounded-3xl rotate-3 transform scale-95 z-0" />
+            <div className="absolute -left-6 -top-6 -right-2 -bottom-2 bg-gradient-to-bl from-gold/10 via-transparent to-brand-orange/10 rounded-full blur-xl opacity-70 z-0" />
+            <div className="absolute -left-4 -top-4 -right-4 -bottom-4 border border-gold/30 rounded-3xl -rotate-2 transform z-0" />
+            
+            {/* Image Wrapper */}
+            <div className="relative z-10 w-full overflow-hidden rounded-2xl shadow-xl border border-gold/20 bg-cream">
+              <img
+                src="/assat/chef/chef.png"
+                alt="Chef Hiru"
+                className="w-full object-cover transition duration-500 hover:scale-105"
+              />
             </div>
           </motion.div>
         </div>

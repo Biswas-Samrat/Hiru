@@ -60,3 +60,143 @@
     @apply flex flex-col items-center gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-6 py-10 text-center;
   }
 }
+
+@keyframes skeleton-wave {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-item {
+  background: linear-gradient(90deg, #ebe9e4 25%, #f2f1ed 50%, #ebe9e4 75%);
+  background-size: 200% 100%;
+  animation: skeleton-wave 1.5s infinite linear;
+}
+
+/* ── Skills Section ───────────────────────────────────────── */
+.skills-section {
+  background: #f9f7f3;
+  padding: 6rem 1rem;
+}
+
+.skills-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.skills-heading {
+  text-align: center;
+  margin-bottom: 3.5rem;
+}
+
+.skills-eyebrow {
+  display: block;
+  font-family: var(--font-royal);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--color-gold);
+  margin-bottom: 0.6rem;
+}
+
+.skills-title {
+  font-family: var(--font-serif);
+  font-size: clamp(2.2rem, 5vw, 3.2rem);
+  font-weight: 700;
+  color: var(--color-ink);
+  margin: 0 0 1rem;
+  line-height: 1.15;
+}
+
+.skills-subtitle {
+  color: var(--color-muted);
+  font-size: 0.97rem;
+  max-width: 480px;
+  margin: 0 auto;
+  line-height: 1.65;
+}
+
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2.2rem 3.5rem;
+}
+
+@media (max-width: 860px) {
+  .skills-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 540px) {
+  .skills-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.skill-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skill-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.skill-label {
+  font-family: var(--font-royal);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--color-ink);
+  text-transform: uppercase;
+}
+
+.skill-pct {
+  font-family: var(--font-royal);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  letter-spacing: 0.04em;
+}
+
+.skill-track {
+  position: relative;
+  height: 6px;
+  border-radius: 99px;
+  overflow: visible;
+}
+
+.skill-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--color-gold-bright, #d4a84b);
+}
+
+.skill-dots {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  border-radius: 99px;
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent 0px,
+    transparent 4px,
+    #d6d2cc 4px,
+    #d6d2cc 6px
+  );
+  background-size: 10px 100%;
+  mix-blend-mode: multiply;
+  opacity: 0.7;
+}

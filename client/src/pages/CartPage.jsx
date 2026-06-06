@@ -167,6 +167,18 @@ const CartPage = () => {
                     >
                       <i className="fa-solid fa-xmark" />
                     </button>
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-surface flex items-center justify-center text-gold border border-gray-100">
+                      {item.image && !item.image.includes('unsplash.com') ? (
+                        <img
+                          src={item.image}
+                          alt={item.itemName}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <i className="fa-solid fa-bowl-food text-xl" />
+                      )}
+                    </div>
                     <div className="min-w-0 flex-1">
                       <strong className="block text-gray-900">{item.itemName}</strong>
                       <span className="text-sm text-gray-500">

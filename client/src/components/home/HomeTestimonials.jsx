@@ -48,12 +48,9 @@ const TestimonialCard = ({ title, body, name, date, avatar, featured }) => (
     <div className="mt-6 border-t border-dotted border-[#d0cec8] pt-5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <img
-            src={avatar}
-            alt=""
-            className="h-10 w-10 shrink-0 rounded-full object-cover"
-            loading="lazy"
-          />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold/10 text-gold">
+            <i className="fa-solid fa-circle-user text-2xl" />
+          </div>
           <span className="truncate text-xs font-bold uppercase tracking-wider text-ink">{name}</span>
         </div>
         <span className="shrink-0 rounded-full bg-[#f0efeb] px-3 py-1 text-xs font-semibold text-muted">

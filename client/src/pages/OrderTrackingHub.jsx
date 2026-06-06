@@ -139,7 +139,17 @@ const OrderTrackingHub = () => {
         <div className="mb-10 text-center">
           <p className="mb-2 font-royal text-xs font-bold uppercase tracking-widest text-gold">My orders</p>
           <h1 className="mb-3 text-3xl font-bold text-ink md:text-4xl">Track your orders</h1>
-          <p className="text-muted">View all ongoing takeaway orders by ID, email, or phone.</p>
+          <p className="text-muted mb-6">View all ongoing takeaway orders by ID, email, or phone.</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link to="/book-a-table" className="btn-primary cursor-pointer min-w-[150px] text-sm text-center">
+              <i className="fa-solid fa-calendar-days me-2" />
+              Book a table
+            </Link>
+            <Link to="/order-online" className="btn-outline cursor-pointer min-w-[150px] text-sm text-center bg-white border border-[#d8d6d0]">
+              <i className="fa-solid fa-bag-shopping me-2" />
+              Order now
+            </Link>
+          </div>
         </div>
 
         <form className="card-light mb-8 space-y-4 p-6" onSubmit={searchOrders}>

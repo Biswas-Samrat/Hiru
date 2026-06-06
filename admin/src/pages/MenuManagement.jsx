@@ -181,11 +181,11 @@ const MenuManagement = () => {
             return (
               <article key={id} className="card overflow-hidden">
                 <div className="relative aspect-[16/10] bg-surface">
-                  {item.image ? (
+                  {item.image && !item.image.includes('unsplash.com') ? (
                     <img src={item.image} alt={item.name} className="h-full w-full object-cover" loading="lazy" />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-muted">
-                      <i className="fa-solid fa-image text-3xl" />
+                    <div className="flex h-full items-center justify-center text-gold/60 bg-cream/30">
+                      <i className="fa-solid fa-bowl-food text-4xl" />
                     </div>
                   )}
                   <span

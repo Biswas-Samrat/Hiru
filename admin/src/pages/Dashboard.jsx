@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import io from 'socket.io-client';
 import api, { API_URL } from '../lib/api';
 import { useCachedQuery } from '../hooks/useCachedQuery';
@@ -153,6 +153,49 @@ const Dashboard = () => {
     }
   };
 
+  /* ── Skills editor ─────────────────────────────────────── */
+  const DEFAULT_SKILLS = [
+    { id: 'willingness', label: 'WILLINGNESS TO LEARN', percentage: 90 },
+    { id: 'passion', label: 'GENUINE PASSION', percentage: 80 },
+    { id: 'organisation', label: 'ORGANISATION', percentage: 75 },
+    { id: 'creativity', label: 'CREATIVITY', percentage: 85 },
+    { id: 'time_management', label: 'TIME MANAGEMENT', percentage: 75 },
+    { id: 'teamwork', label: 'TEAMWORK', percentage: 95 },
+  ];
+  const localSkills = settings.skills && settings.skills.length > 0
+    ? settings.skills
+    : DEFAULT_SKILLS;
+  const [skillDraft, setSkillDraft] = useState(null);
+  const [savingSkills, setSavingSkills] = useState(false);
+  const [skillsSaved, setSkillsSaved] = useState(false);
+  const skillsRef = useRef(null);
+
+  const activeSkills = skillDraft ?? localSkills;
+
+  const updateSkillPct = (id, raw) => {
+    const pct = Math.min(100, Math.max(0, Number(raw)));
+    setSkillDraft(activeSkills.map((s) => s.id === id ? { ...s, percentage: pct } : s));
+    setSkillsSaved(false);
+  };
+
+  const saveSkills = async () => {
+    if (savingSkills) return;
+    setSavingSkills(true);
+    const next = { ...settings, skills: activeSkills };
+    try {
+      const res = await api.put('/api/settings', next);
+      setSettings(res.data);
+      setCached('settings', res.data);
+      setSkillDraft(null);
+      setSkillsSaved(true);
+      setTimeout(() => setSkillsSaved(false), 2500);
+    } catch {
+      invalidateCache('settings');
+    } finally {
+      setSavingSkills(false);
+    }
+  };
+
   return (
     <div>
       <div className="page-header">
@@ -263,6 +306,81 @@ const Dashboard = () => {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Skills Editor ─────────────────────────────────── */}
+      <div ref={skillsRef} className="mt-6">
+        <div className="card p-5">
+          <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-ink">Chef Skills — Percentages</h3>
+              <p className="mt-0.5 text-sm text-muted">
+                Adjust the percentage for each skill shown on the public Chef Hiru page.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              {skillsSaved && (
+                <span className="text-sm font-semibold text-green-600">
+                  <i className="fa-solid fa-circle-check me-1" />
+                  Saved!
+                </span>
+              )}
+              <button
+                type="button"
+                className="btn-primary gap-2"
+                onClick={saveSkills}
+                disabled={savingSkills || !skillDraft}
+              >
+                {savingSkills
+                  ? <><i className="fa-solid fa-spinner fa-spin me-1" />Saving…</>
+                  : <><i className="fa-solid fa-floppy-disk me-1" />Save changes</>}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {activeSkills.map((skill) => (
+              <div key={skill.id} className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <label
+                    htmlFor={`skill-${skill.id}`}
+                    className="text-xs font-bold uppercase tracking-widest text-ink"
+                  >
+                    {skill.label}
+                  </label>
+                  <span className="text-sm font-bold text-gold">{skill.percentage}%</span>
+                </div>
+                {/* Visual bar preview */}
+                <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-border">
+                  <div
+                    className="absolute left-0 top-0 h-full rounded-full bg-gold transition-all duration-300"
+                    style={{ width: `${skill.percentage}%` }}
+                  />
+                </div>
+                {/* Range slider */}
+                <input
+                  id={`skill-${skill.id}`}
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={skill.percentage}
+                  onChange={(e) => updateSkillPct(skill.id, e.target.value)}
+                  className="w-full accent-gold"
+                />
+                {/* Number input for precision */}
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={skill.percentage}
+                  onChange={(e) => updateSkillPct(skill.id, e.target.value)}
+                  className="input-field text-center text-sm"
+                />
+              </div>
+            ))}
           </div>
         </div>
       </div>

@@ -3,6 +3,7 @@ import Hero from '../components/Hero';
 import HomeFeatures from '../components/home/HomeFeatures';
 import HomeGallery from '../components/home/HomeGallery';
 import HomeTestimonials from '../components/home/HomeTestimonials';
+import HomeWorkingHours from '../components/home/HomeWorkingHours';
 
 const Home = () => (
   <div>
@@ -10,6 +11,7 @@ const Home = () => (
     <HomeFeatures />
     <HomeGallery />
     <HomeTestimonials />
+    <HomeWorkingHours />
 
     <section className="border-t border-[#e8e6e1] bg-white py-14 md:py-16">
       <div className="mx-auto max-w-4xl px-4 text-center">
@@ -34,3 +36,4 @@ const Home = () => (
 );
 
 export default Home;
+

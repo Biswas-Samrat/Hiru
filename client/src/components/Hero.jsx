@@ -23,8 +23,22 @@ const Hero = () => (
     <div className="relative mx-auto max-w-7xl px-4 pb-16 pt-3 md:pb-20 md:pt-4">
       <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
 
-        {/* ── LEFT: text content ── */}
-        <motion.div {...fadeUp} transition={{ duration: 0.65 }}>
+        {/* ── RIGHT: hero photo (moved first in JSX, shows first on mobile, ordered 2nd on desktop) ── */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.7, delay: 0.15 }}
+          className="mx-auto w-full max-w-lg lg:max-w-none lg:order-2"
+        >
+          <img
+            src="/assat/hero/hero.png"
+            alt="Sri Lankan street food & fusion"
+            className="h-full w-full rounded-3xl object-cover shadow-[0_24px_60px_rgba(26,26,26,0.12)]"
+          />
+        </motion.div>
+
+        {/* ── LEFT: text content (moved second in JSX, shows second on mobile, ordered 1st on desktop) ── */}
+        <motion.div {...fadeUp} transition={{ duration: 0.65 }} className="lg:order-1">
           <h1 className="mb-5 text-4xl font-bold leading-[1.1] text-ink md:text-5xl lg:text-[3.35rem]">
             Bold Sri Lankan
             <span className="mt-1 block text-gold">street food &amp; fusion</span>
@@ -72,20 +86,6 @@ const Hero = () => (
               </div>
             ))}
           </div>
-        </motion.div>
-
-        {/* ── RIGHT: hero photo only ── */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.7, delay: 0.15 }}
-          className="mx-auto w-full max-w-lg lg:max-w-none"
-        >
-          <img
-            src="/assat/hero/hero.png"
-            alt="Sri Lankan street food & fusion"
-            className="h-full w-full rounded-3xl object-cover shadow-[0_24px_60px_rgba(26,26,26,0.12)]"
-          />
         </motion.div>
 
       </div>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import FilterBar from '../components/FilterBar';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -49,7 +49,9 @@ const normaliseApiItem = (item) => ({
 });
 
 const OrderOnlinePage = () => {
-  const [menuItems, setMenuItems] = useState(customerMenu.map((item) => ({ ...item, displayCategory: displayCategory(item.category) })));
+  const navigate = useNavigate();
+  const [menuItems, setMenuItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filterCategory, setFilterCategory] = useState('All');
   const [selectedItem, setSelectedItem] = useState(null);
   const [cart, setCart] = useState(getCart);
@@ -64,6 +66,7 @@ const OrderOnlinePage = () => {
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
 
     axios.get(`${API_URL}/api/menu`).then((menuResult) => {
       if (!active) return;
@@ -74,7 +77,12 @@ const OrderOnlinePage = () => {
             .map(normaliseApiItem)
         );
       }
-    }).catch(() => {});
+    }).catch(() => {})
+    .finally(() => {
+      setTimeout(() => {
+        if (active) setLoading(false);
+      }, 1000);
+    });
 
     const syncCart = () => setCart(getCart());
     window.addEventListener('hirans-cart-updated', syncCart);
@@ -109,6 +117,13 @@ const OrderOnlinePage = () => {
   const addToCart = (item = selectedItem) => {
     if (!item) return;
 
+    const existing = getCart().find((cartItem) => cartItem.menuItem === item.id);
+    if (existing) {
+      toast.error(`${item.name} is already in your cart.`);
+      setSelectedItem(null);
+      return;
+    }
+
     const extras = [
       options.addCheese ? { name: 'Add Cheese', price: 5 } : null,
       options.addEgg ? { name: 'Add Egg', price: 3 } : null,
@@ -129,6 +144,7 @@ const OrderOnlinePage = () => {
       cartId: cartIdParts.filter(Boolean).join('-'),
       menuItem: item.id,
       itemName: item.name,
+      image: item.image,
       quantity,
       price: Number(item.price),
       unitPrice,
@@ -147,7 +163,18 @@ const OrderOnlinePage = () => {
     toast.success(`${item.name} added to cart`);
   };
 
+  const handleOrderNow = (item = selectedItem) => {
+    if (!item) return;
+    addToCart(item);
+    navigate('/cart');
+  };
+
   const handleAddClick = (item) => {
+    const existing = getCart().find((cartItem) => cartItem.menuItem === item.id);
+    if (existing) {
+      toast.error(`${item.name} is already in your cart.`);
+      return;
+    }
     if (item.customization?.curryBase || item.customization?.spice || item.customization?.extras) {
       openOptions(item);
     } else {
@@ -184,53 +211,78 @@ const OrderOnlinePage = () => {
           onSelect={setFilterCategory}
         />
 
-        <div className="mt-6 grid grid-cols-1 gap-x-12 gap-y-2 md:grid-cols-2 md:gap-x-16 lg:gap-x-20">
-          {visibleItems.map((item) => (
-            <article
-              key={item.id}
-              className="group flex gap-4 border-b border-[#e8e6e1]/80 py-6 last:border-b-0 md:py-7"
-            >
-              <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg bg-[#ebe9e4] sm:h-24 sm:w-24">
-                <img
-                  src={item.image || placeholderImage}
-                  alt={item.name}
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  loading="lazy"
-                />
+        {loading ? (
+          <div className="mt-6 grid grid-cols-1 gap-x-12 gap-y-2 md:grid-cols-2 md:gap-x-16 lg:gap-x-20">
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <div key={n} className="flex gap-4 py-6 border-b border-[#e8e6e1]/80 last:border-b-0">
+                <div className="h-[88px] w-[88px] shrink-0 rounded-lg skeleton-item sm:h-24 sm:w-24" />
+                <div className="flex-1 space-y-3 py-1">
+                  <div className="h-5 skeleton-item rounded w-2/3" />
+                  <div className="h-4 skeleton-item rounded w-full" />
+                  <div className="h-4 skeleton-item rounded w-5/6" />
+                </div>
+                <div className="flex flex-col items-end gap-3 justify-center">
+                  <div className="h-5 skeleton-item rounded w-12" />
+                  <div className="h-10 w-10 skeleton-item rounded-full" />
+                </div>
               </div>
-
-              <div className="flex min-w-0 flex-1 flex-col justify-center pr-2">
-                <h2 className="font-serif text-xl font-bold leading-tight text-ink sm:text-2xl">
-                  {item.code ? `${item.code}. ` : ''}
-                  {item.name}
-                </h2>
-                <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted">
-                  {item.description}
-                </p>
-              </div>
-
-              <div className="flex shrink-0 flex-col items-end justify-center gap-3">
-                <span className="font-serif text-lg font-bold tabular-nums text-ink sm:text-xl">
-                  {formatCurrency(item.price)}
-                </span>
-                <button
-                  type="button"
-                  className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-brand-orange text-ink shadow-md transition hover:scale-105 hover:bg-[#e85f2a] active:scale-95"
-                  onClick={() => handleAddClick(item)}
-                  title="Add to cart"
-                  aria-label={`Add ${item.name} to cart`}
-                >
-                  <i className="fa-solid fa-bag-shopping text-base" />
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-
-        {visibleItems.length === 0 && (
-          <div className="mt-12 py-16 text-center text-muted">
-            No available items in this category right now.
+            ))}
           </div>
+        ) : (
+          <>
+            <div className="mt-6 grid grid-cols-1 gap-x-12 gap-y-2 md:grid-cols-2 md:gap-x-16 lg:gap-x-20">
+              {visibleItems.map((item) => (
+                <article
+                  key={item.id}
+                  className="group flex gap-4 border-b border-[#e8e6e1]/80 py-6 last:border-b-0 md:py-7"
+                >
+                  <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg bg-[#ebe9e4] sm:h-24 sm:w-24 flex items-center justify-center text-gold">
+                    {item.image && !item.image.includes('unsplash.com') ? (
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <i className="fa-solid fa-bowl-food text-3xl" />
+                    )}
+                  </div>
+
+                  <div className="flex min-w-0 flex-1 flex-col justify-center pr-2">
+                    <h2 className="font-serif text-xl font-bold leading-tight text-ink sm:text-2xl">
+                      {item.code ? `${item.code}. ` : ''}
+                      {item.name}
+                    </h2>
+                    <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted">
+                      {item.description}
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 flex-col items-end justify-center gap-3">
+                    <span className="font-serif text-lg font-bold tabular-nums text-ink sm:text-xl">
+                      {formatCurrency(item.price)}
+                    </span>
+                    <button
+                      type="button"
+                      className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-brand-orange text-ink shadow-md transition hover:scale-105 hover:bg-[#e85f2a] active:scale-95"
+                      onClick={() => handleAddClick(item)}
+                      title="Add to cart"
+                      aria-label={`Add ${item.name} to cart`}
+                    >
+                      <i className="fa-solid fa-bag-shopping text-base" />
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {visibleItems.length === 0 && (
+              <div className="mt-12 py-16 text-center text-muted">
+                No available items in this category right now.
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -240,7 +292,7 @@ const OrderOnlinePage = () => {
           onClick={() => setSelectedItem(null)}
         >
           <div
-            className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-2xl"
+            className="relative max-h-[90vh] w-full max-w-md lg:max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -251,7 +303,14 @@ const OrderOnlinePage = () => {
             >
               <i className="fa-solid fa-xmark" />
             </button>
-            <img src={selectedItem.image} alt={selectedItem.name} className="mb-4 h-40 w-full rounded-lg object-cover" />
+            {selectedItem.image && !selectedItem.image.includes('unsplash.com') ? (
+              <img src={selectedItem.image} alt={selectedItem.name} className="mb-4 h-48 w-full rounded-lg object-cover" />
+            ) : (
+              <div className="mb-4 h-48 w-full rounded-lg bg-[#ebe9e4] flex flex-col items-center justify-center text-gold">
+                <i className="fa-solid fa-bowl-food text-5xl mb-2" />
+                <span className="text-xs text-muted">Hiran's Fusion</span>
+              </div>
+            )}
             <h2 className="mb-2 text-xl font-bold text-gray-900">{selectedItem.name}</h2>
             <p className="mb-4 text-sm text-gray-600">{selectedItem.description}</p>
 
@@ -341,13 +400,22 @@ const OrderOnlinePage = () => {
               </button>
             </div>
 
-            <button
-              type="button"
-              className="w-full cursor-pointer rounded-full bg-brand-orange py-3 font-bold text-ink hover:bg-[#e85f2a]"
-              onClick={() => addToCart(selectedItem)}
-            >
-              Add to Cart
-            </button>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                className="flex-1 cursor-pointer rounded-full border border-gray-200 bg-white py-3 font-bold text-ink hover:bg-gray-50"
+                onClick={() => addToCart(selectedItem)}
+              >
+                Add to Cart
+              </button>
+              <button
+                type="button"
+                className="flex-1 cursor-pointer rounded-full bg-brand-orange py-3 font-bold text-ink hover:bg-[#e85f2a]"
+                onClick={() => handleOrderNow(selectedItem)}
+              >
+                Order Now
+              </button>
+            </div>
           </div>
         </div>
       )}

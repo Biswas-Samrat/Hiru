@@ -7,6 +7,7 @@ const Login = () => {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   if (!loading && isAuthenticated) {
     return <Navigate to="/" replace />;
@@ -47,17 +48,30 @@ const Login = () => {
               placeholder="admin@gmail.com"
             />
           </label>
-          <label className="block text-sm font-semibold text-ink">
+          <label className="block text-sm font-semibold text-ink relative">
             Password
-            <input
-              className="input-field mt-1"
-              type="password"
-              required
-              autoComplete="current-password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder="Enter password"
-            />
+            <div className="relative mt-1">
+              <input
+                className="input-field pr-10"
+                type={showPassword ? 'text' : 'password'}
+                required
+                autoComplete="current-password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder="Enter password"
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-ink cursor-pointer"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? (
+                  <i className="fa-solid fa-eye-slash" />
+                ) : (
+                  <i className="fa-solid fa-eye" />
+                )}
+              </button>
+            </div>
           </label>
 
           {error && (

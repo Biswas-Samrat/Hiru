@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import io from 'socket.io-client';
 import api, { API_URL } from '../lib/api';
 import { useCachedQuery } from '../hooks/useCachedQuery';
-import { setCached } from '../lib/adminCache';
+import { setCached, invalidateCache } from '../lib/adminCache';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const socket = io(API_URL);
 
@@ -13,6 +14,8 @@ const Reservations = () => {
     []
   );
   const [updatingId, setUpdatingId] = useState(null);
+  const [dialog, setDialog] = useState({ open: false, id: null, name: '' });
+  const [movingId, setMovingId] = useState(null);
 
   useEffect(() => {
     socket.on('newReservation', (reservation) => {
@@ -54,8 +57,39 @@ const Reservations = () => {
     }
   };
 
+  const openMoveDialog = (id, name) => setDialog({ open: true, id, name });
+  const closeDialog = () => setDialog({ open: false, id: null, name: '' });
+
+  const confirmMoveToHistory = async () => {
+    const id = dialog.id;
+    closeDialog();
+    setMovingId(id);
+    try {
+      await api.post(`/api/reservation-history/${id}/move`);
+      setReservations((current) => {
+        const next = (current || []).filter((r) => (r.id || r._id) !== id);
+        setCached('reservations', next);
+        invalidateCache('reservationHistory');
+        return next;
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setMovingId(null);
+    }
+  };
+
   return (
     <div>
+      <ConfirmDialog
+        open={dialog.open}
+        title="Move to History?"
+        message={`This will remove "${dialog.name}'s" reservation from the active list and archive it in Reservation History.`}
+        confirmLabel="Yes, move to history"
+        danger={false}
+        onConfirm={confirmMoveToHistory}
+        onCancel={closeDialog}
+      />
       <div className="page-header">
         <div>
           <p className="eyebrow">Reservations</p>
@@ -119,7 +153,7 @@ const Reservations = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {res.status === 'Pending' ? (
                       <>
                         <button
@@ -148,6 +182,18 @@ const Reservations = () => {
                         {res.status}
                       </span>
                     )}
+                    <button
+                      type="button"
+                      disabled={movingId === id}
+                      onClick={() => openMoveDialog(id, res.customerInfo?.name || 'this reservation')}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+                      title="Move to history"
+                    >
+                      {movingId === id
+                        ? <i className="fa-solid fa-spinner fa-spin" />
+                        : <i className="fa-solid fa-clock-rotate-left" />}
+                      Move to History
+                    </button>
                   </div>
                 </div>
               );
