@@ -1,17 +1,54 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import io from 'socket.io-client';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { saveTrackedOrder } from './OrderTrackingHub';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const CART_KEY = 'hirans-cart';
+const PENDING_ONLINE_ORDER_KEY = 'hirans-pending-online-order';
 const socket = io(API_URL);
+
+/**
+ * Clears the cart only when the PAID webhook fires for the matching pending order.
+ * The idempotency check (pendingOrderId === orderId) ensures we only clear for
+ * the correct order — not for any random order update on the page.
+ */
+const clearCartAfterPaidWebhook = (orderId) => {
+  const pendingOrderId = localStorage.getItem(PENDING_ONLINE_ORDER_KEY);
+  if (pendingOrderId !== orderId) return false;
+
+  localStorage.setItem(CART_KEY, JSON.stringify([]));
+  localStorage.removeItem(PENDING_ONLINE_ORDER_KEY);
+  window.dispatchEvent(new Event('hirans-cart-updated'));
+  return true;
+};
 
 const OrderTracking = () => {
   const { id } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [order, setOrder] = useState(null);
   const [timeLeft, setTimeLeft] = useState(null);
+  const [showPendingBanner, setShowPendingBanner] = useState(false);
 
+  // ── Handle URL params set by Stripe / CartPage ──────────────────────────────
+  useEffect(() => {
+    if (searchParams.get('success') === 'true') {
+      // Stripe redirect-based flow: payment already confirmed server-side.
+      // Clear the cart now — the webhook may arrive at the same time or has already fired.
+      clearCartAfterPaidWebhook(id);
+      toast.success('Online payment completed successfully!');
+      setSearchParams({}, { replace: true });
+    } else if (searchParams.get('pending') === 'true') {
+      // Card payment confirmed on-page — webhook is the authority for the PAID status.
+      // Show the "processing" banner; it transitions to "confirmed" once the socket fires.
+      setShowPendingBanner(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // ── Fetch order + join socket room ──────────────────────────────────────────
   useEffect(() => {
     const fetchOrder = async () => {
       if (id.startsWith('local-')) {
@@ -24,6 +61,13 @@ const OrderTracking = () => {
         const res = await axios.get(`${API_URL}/api/orders/${id}`);
         setOrder(res.data);
         saveTrackedOrder(res.data);
+        // If the user navigated here after paying and the webhook already fired, clear now.
+        if (
+          res.data?.customerInfo?.paymentMethod === 'online' &&
+          res.data?.customerInfo?.paymentStatus === 'PAID'
+        ) {
+          clearCartAfterPaidWebhook(id);
+        }
       } catch (err) {
         console.error(err);
       }
@@ -37,11 +81,23 @@ const OrderTracking = () => {
     socket.on('orderUpdate', (updatedOrder) => {
       setOrder(updatedOrder);
       saveTrackedOrder(updatedOrder);
+      // Clear cart only when this specific order becomes PAID via webhook
+      if (
+        updatedOrder?.customerInfo?.paymentMethod === 'online' &&
+        updatedOrder?.customerInfo?.paymentStatus === 'PAID'
+      ) {
+        clearCartAfterPaidWebhook(id);
+        // The pending banner transitions from "processing" → "confirmed" automatically
+        // via the `showPendingBanner && paymentStatus === 'PAID'` render condition.
+        // We do NOT call setShowPendingBanner(true) here — if the user dismissed it,
+        // re-showing it would be unwanted.
+      }
     });
 
     return () => socket.off('orderUpdate');
   }, [id]);
 
+  // ── Countdown timer ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!order || !order.estimatedReadyTime || order.status === 'Ready for Pickup') return;
 
@@ -92,6 +148,36 @@ const OrderTracking = () => {
           <h2 className="mb-2 font-royal text-xs font-bold uppercase tracking-widest text-gold">Order status</h2>
           <h1 className="text-3xl font-bold text-ink md:text-4xl">Track your order</h1>
         </div>
+
+        {/* Pending payment banner — shown after card payment confirmed on-page */}
+        {showPendingBanner && order?.customerInfo?.paymentStatus !== 'PAID' && (
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 animate-pulse">
+            <i className="fa-solid fa-circle-notch fa-spin mt-0.5 shrink-0 text-amber-500" />
+            <div className="flex-1">
+              <p className="font-semibold">Payment processing…</p>
+              <p className="text-xs mt-0.5 text-amber-700">
+                Your card was charged. We're waiting for Stripe to confirm — this usually takes a few seconds.
+                This page will update automatically.
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => setShowPendingBanner(false)}
+              className="shrink-0 text-amber-400 hover:text-amber-700"
+            >
+              <i className="fa-solid fa-xmark" />
+            </button>
+          </div>
+        )}
+
+        {/* Payment confirmed banner — shown once webhook fires and order updates */}
+        {showPendingBanner && order?.customerInfo?.paymentStatus === 'PAID' && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+            <i className="fa-solid fa-circle-check text-green-500 shrink-0" />
+            <p className="font-semibold">Payment confirmed! Your order is in the kitchen.</p>
+          </div>
+        )}
 
         <div className="card-light mb-8 p-8 text-center">
           <h3 className="mb-3 text-xs font-bold uppercase text-muted">Estimated preparation time</h3>

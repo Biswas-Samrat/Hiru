@@ -83,6 +83,12 @@ exports.createOrder = async (req, res, io) => {
       return res.status(400).json({ message: 'This restaurant accepts takeaway pickup orders only.' });
     }
 
+    if (customerInfo?.paymentMethod && customerInfo.paymentMethod !== 'cash') {
+      return res.status(400).json({
+        message: 'Online payments must be created through the secure payment endpoint.',
+      });
+    }
+
     const mongoose = require('mongoose');
     // Extract menuItem IDs from request items
     const menuItemIds = items
@@ -103,17 +109,35 @@ exports.createOrder = async (req, res, io) => {
       customerInfo: {
         ...customerInfo,
         fulfillment: 'pickup',
+        paymentMethod: 'cash',
+        paymentStatus: 'UNPAID - CASH',
       },
       totalAmount,
       estimatedReadyTime: readyTime,
       preparationTimer: prepMinutes,
-      status: 'Pending'
+      status: 'Pending',
     });
 
     await newOrder.save();
+    const orderId = newOrder._id.toString();
+    console.log(`[orders] Cash order created`, JSON.stringify({ orderId, email: newOrder.customerInfo?.email }));
     
     // Emit event to admin dashboard
     io.emit('newOrder', newOrder);
+    io.emit('adminOrderUpdate', newOrder);
+    
+    // Send order emails non-blocking — errors logged individually, never fail the HTTP response
+    const { sendOrderConfirmationToCustomer, sendOrderNotificationToAdmin } = require('../services/emailService');
+
+    console.log(`[orders] Sending customer order confirmation email`, JSON.stringify({ orderId, to: newOrder.customerInfo?.email }));
+    sendOrderConfirmationToCustomer(newOrder)
+      .then(() => console.log(`[orders] Customer order confirmation email sent`, JSON.stringify({ orderId })))
+      .catch((err) => console.error(`[orders] ✗ Customer order confirmation email failed`, JSON.stringify({ orderId, error: err.message })));
+
+    console.log(`[orders] Sending admin order notification email`, JSON.stringify({ orderId, to: process.env.ADMIN_EMAIL || 'samrat.tx@gmail.com' }));
+    sendOrderNotificationToAdmin(newOrder)
+      .then(() => console.log(`[orders] Admin order notification email sent`, JSON.stringify({ orderId })))
+      .catch((err) => console.error(`[orders] ✗ Admin order notification email failed`, JSON.stringify({ orderId, error: err.message })));
     
     res.status(201).json(newOrder);
   } catch (error) {

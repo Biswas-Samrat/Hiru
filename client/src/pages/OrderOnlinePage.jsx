@@ -175,11 +175,7 @@ const OrderOnlinePage = () => {
       toast.error(`${item.name} is already in your cart.`);
       return;
     }
-    if (item.customization?.curryBase || item.customization?.spice || item.customization?.extras) {
-      openOptions(item);
-    } else {
-      addToCart(item);
-    }
+    openOptions(item);
   };
 
   const placeholderImage =
