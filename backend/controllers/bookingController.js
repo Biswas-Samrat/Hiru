@@ -59,17 +59,15 @@ exports.createBooking = async (req, res, io) => {
     }
 
     // 2. Trigger emails asynchronously (non-blocking)
-    try {
-      await sendBookingConfirmationToCustomer(newReservation);
-    } catch (err) {
-      console.error('✗ Email sending failed: Customer booking confirmation email failed:', err.message);
-    }
+    sendBookingConfirmationToCustomer(newReservation)
+      .catch((err) => {
+        console.error('✗ Email sending failed: Customer booking confirmation email failed:', err.message);
+      });
 
-    try {
-      await sendBookingNotificationToAdmin(newReservation);
-    } catch (err) {
-      console.error('✗ Email sending failed: Admin booking notification email failed:', err.message);
-    }
+    sendBookingNotificationToAdmin(newReservation)
+      .catch((err) => {
+        console.error('✗ Email sending failed: Admin booking notification email failed:', err.message);
+      });
 
     res.status(201).json(newReservation);
   } catch (error) {

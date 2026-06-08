@@ -27,10 +27,10 @@ const sendEmail = async ({ to, subject, html, context = '' }) => {
       to,
       messageId: info.messageId,
     });
-    return info;
+    return { success: true, info };
   } catch (error) {
     logError(`Email delivery failed${context ? ` [${context}]` : ''}`, error, { to, subject });
-    throw error;
+    return { success: false, error };
   }
 };
 

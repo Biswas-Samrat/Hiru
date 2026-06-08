@@ -1,4 +1,11 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+if (STRIPE_SECRET_KEY) {
+  console.log(`[stripe] ✓ STRIPE_SECRET_KEY is loaded (starts with ${STRIPE_SECRET_KEY.slice(0, 7)}...)`);
+} else {
+  console.error('[stripe] ✗ STRIPE_SECRET_KEY is not loaded in process.env!');
+}
+
+const stripe = require('stripe')(STRIPE_SECRET_KEY);
 const Order = require('../models/Order');
 
 const WEBHOOK_SETTLEABLE_STATUSES = ['PENDING_STRIPE', 'PAYMENT_FAILED'];
@@ -10,7 +17,8 @@ const log = (message, meta = {}) => {
 
 const logError = (message, error, meta = {}) => {
   const details = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
-  console.error(`[payments] ${message}: ${error?.message || error}${details}`);
+  const stripeType = error?.type ? ` (type: ${error.type})` : '';
+  console.error(`[payments] ✗ ${message}: ${error?.message || error}${stripeType}${details}`);
 };
 
 const emitOrderUpdates = (io, order, { newSuccessfulOrder = false } = {}) => {
@@ -24,7 +32,7 @@ const emitOrderUpdates = (io, order, { newSuccessfulOrder = false } = {}) => {
   io.to(order._id.toString()).emit('orderUpdate', order);
 };
 
-const sendSuccessfulOrderEmails = async (order, source) => {
+const sendSuccessfulOrderEmails = (order, source) => {
   const {
     sendOrderConfirmationToCustomer,
     sendOrderNotificationToAdmin,
@@ -33,30 +41,28 @@ const sendSuccessfulOrderEmails = async (order, source) => {
   const orderId = order._id?.toString();
 
   // ── Customer confirmation ────────────────────────────────────────────────
-  log('Sending customer order confirmation email', {
+  log('Sending customer order confirmation email (non-blocking)', {
     orderId,
     to: order.customerInfo?.email,
     source,
   });
-  try {
-    await sendOrderConfirmationToCustomer(order);
-    log('Customer order confirmation email sent', { orderId });
-  } catch (emailErr) {
-    logError('Customer order confirmation email failed', emailErr, { orderId, source });
-  }
+  sendOrderConfirmationToCustomer(order)
+    .then(() => log('Customer order confirmation email complete', { orderId }))
+    .catch((emailErr) => {
+      logError('Customer order confirmation email failed', emailErr, { orderId, source });
+    });
 
   // ── Admin notification ───────────────────────────────────────────────────
-  log('Sending admin order notification email', {
+  log('Sending admin order notification email (non-blocking)', {
     orderId,
     to: process.env.ADMIN_EMAIL || 'samrat.tx@gmail.com',
     source,
   });
-  try {
-    await sendOrderNotificationToAdmin(order);
-    log('Admin order notification email sent', { orderId });
-  } catch (emailErr) {
-    logError('Admin order notification email failed', emailErr, { orderId, source });
-  }
+  sendOrderNotificationToAdmin(order)
+    .then(() => log('Admin order notification email complete', { orderId }))
+    .catch((emailErr) => {
+      logError('Admin order notification email failed', emailErr, { orderId, source });
+    });
 };
 
 exports.createPaymentIntent = async (req, res) => {
@@ -229,7 +235,7 @@ const markOrderPaid = async ({ orderId, event, paymentIntentId, sessionId, io })
   emitOrderUpdates(io, updatedOrder, { newSuccessfulOrder: true });
 
   // Individual email errors are caught inside sendSuccessfulOrderEmails — no extra try/catch needed
-  await sendSuccessfulOrderEmails(updatedOrder, event.type);
+  sendSuccessfulOrderEmails(updatedOrder, event.type);
   log('Order email dispatch completed', { orderId, eventId: event.id });
 };
 
